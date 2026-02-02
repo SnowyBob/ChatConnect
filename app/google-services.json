@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "370427325766",
+    "project_id": "chatconnect-5ba61",
+    "storage_bucket": "chatconnect-5ba61.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:370427325766:android:7a32f358ced57a712f8947",
+        "android_client_info": {
+          "package_name": "com.example.chatconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABtL7GpsyfvpKvtHPrxvAWAZUJqMTAxRM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
