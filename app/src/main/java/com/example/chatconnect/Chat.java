@@ -1,19 +1,17 @@
 package com.example.chatconnect;
 
 public class Chat {
-    private String userName;
+    private String username;
     private String lastMessage;
+    private String odId; // other user's ID
 
-    public Chat(String userName, String lastMessage) {
-        this.userName = userName;
+    public Chat(String username, String lastMessage, String odId) {
+        this.username = username;
         this.lastMessage = lastMessage;
+        this.odId = odId;
     }
 
-    public String getUserName() {
-        return userName;
-    }
-
-    public String getLastMessage() {
-        return lastMessage;
-    }
+    public String getUsername() { return username; }
+    public String getLastMessage() { return lastMessage; }
+    public String getOdId() { return odId; }
 }

@@ -7,18 +7,19 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
+import java.util.List;
 
 public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.UserViewHolder> {
 
-    private ArrayList<User> userList;
-    private OnUserClickListener onUserClickListener;
+    private List<User> users;
+    private final OnUserClickListener onUserClickListener;
 
     public interface OnUserClickListener {
         void onUserClick(User user);
     }
 
-    public UsersAdapter(ArrayList<User> userList, OnUserClickListener onUserClickListener) {
-        this.userList = userList;
+    public UsersAdapter(List<User> users, OnUserClickListener onUserClickListener) {
+        this.users = users;
         this.onUserClickListener = onUserClickListener;
     }
 
@@ -31,18 +32,13 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.UserViewHold
 
     @Override
     public void onBindViewHolder(@NonNull UserViewHolder holder, int position) {
-        User user = userList.get(position);
-        holder.nameTextView.setText(user.getName());
-        holder.itemView.setOnClickListener(v -> {
-            if (onUserClickListener != null) {
-                onUserClickListener.onUserClick(user);
-            }
-        });
+        User user = users.get(position);
+        holder.bind(user, onUserClickListener);
     }
 
     @Override
     public int getItemCount() {
-        return userList.size();
+        return users.size();
     }
 
     static class UserViewHolder extends RecyclerView.ViewHolder {
@@ -51,6 +47,11 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.UserViewHold
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
             nameTextView = itemView.findViewById(R.id.user_name);
+        }
+
+        public void bind(final User user, final OnUserClickListener onUserClickListener) {
+            nameTextView.setText(user.getName());
+            itemView.setOnClickListener(v -> onUserClickListener.onUserClick(user));
         }
     }
 }

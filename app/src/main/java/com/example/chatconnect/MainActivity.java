@@ -1,8 +1,8 @@
 package com.example.chatconnect;
 
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -13,11 +13,17 @@ import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -25,6 +31,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView emptyChatsText;
     private ArrayList<Chat> chats = new ArrayList<>();
     private ChatsAdapter adapter;
+    private FirebaseFirestore db;
+    private String currentUserId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,15 +42,18 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        db = FirebaseFirestore.getInstance();
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            currentUserId = currentUser.getUid();
+        }
+
         chatsRecyclerView = findViewById(R.id.chats_recycler_view);
+        chatsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         emptyChatsText = findViewById(R.id.empty_chats_text);
         Button newChatButton = findViewById(R.id.new_chat_button);
         ImageView settingsButton = findViewById(R.id.settings);
         ImageView profileButton = findViewById(R.id.profile);
-
-        // Add some dummy chats for demonstration
-        chats.add(new Chat("Jessica Thompson", "Hey, I was wondering if..."));
-        chats.add(new Chat("Michael Lee", "Let's catch up soon!"));
 
         adapter = new ChatsAdapter(chats);
         chatsRecyclerView.setAdapter(adapter);
@@ -61,8 +72,67 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(MainActivity.this, ProfileActivity.class));
         });
 
-        handleIntent(getIntent());
+        loadChats();
     }
+
+    private void loadChats() {
+        Log.d("MainActivity", "Loading chats for user: " + currentUserId);
+
+        db.collection("chats")
+                .whereArrayContains("participants", currentUserId)
+                .addSnapshotListener((snapshots, e) -> {
+                    if (e != null) {
+                        Log.e("MainActivity", "Query failed: " + e.getMessage());
+                        return;
+                    }
+
+                    Log.d("MainActivity", "Found " + snapshots.size() + " chats");
+
+                    chats.clear();
+                    for (QueryDocumentSnapshot document : snapshots) {
+                        ArrayList<String> participants = (ArrayList<String>) document.get("participants");
+                        if (participants != null) {
+                            String otherUserId = null;
+                            for (String id : participants) {
+                                if (!id.equals(currentUserId)) {
+                                    otherUserId = id;
+                                    break;
+                                }
+                            }
+                            if (otherUserId != null) {
+                                String lastMessage = document.getString("lastMessage");
+                                String odId = otherUserId;
+
+                                db.collection("users").document(otherUserId).get()
+                                        .addOnSuccessListener(userDoc -> {
+                                            String username = userDoc.getString("username");
+                                            if (username != null) {
+                                                chats.add(new Chat(username, lastMessage != null ? lastMessage : "", odId));
+                                                adapter.notifyDataSetChanged();
+                                                updateUI();
+                                            }
+                                        });
+                            }
+                        }
+                    }
+                    updateUI();
+                });
+    }
+
+    private void fetchUsernames(Set<String> userIds) {
+        for (String userId : userIds) {
+            db.collection("users").document(userId).get().addOnSuccessListener(documentSnapshot -> {
+                String username = documentSnapshot.getString("username");
+                if (username != null) {
+                    // For now, we don't have last message, so it's empty
+                    chats.add(new Chat(username, "", userId));
+                    adapter.notifyDataSetChanged();
+                    updateUI();
+                }
+            });
+        }
+    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -93,32 +163,6 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
-    }
-
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        handleIntent(intent);
-    }
-
-    private void handleIntent(Intent intent) {
-        if (intent != null && intent.hasExtra("new_chat_user_name")) {
-            String newChatUserName = intent.getStringExtra("new_chat_user_name");
-            boolean chatExists = false;
-            for (Chat chat : chats) {
-                if (chat.getUserName().equals(newChatUserName)) {
-                    chatExists = true;
-                    break;
-                }
-            }
-            if (!chatExists) {
-                chats.add(new Chat(newChatUserName, "")); // Start with an empty last message
-                adapter.notifyDataSetChanged();
-                updateUI();
-            }
-            // Remove the extra so it's not processed again
-            intent.removeExtra("new_chat_user_name");
-        }
     }
 
     private void updateUI() {
