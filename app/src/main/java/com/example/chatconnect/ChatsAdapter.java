@@ -27,13 +27,13 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ChatViewHold
     @Override
     public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
         Chat chat = chatList.get(position);
-        holder.userNameTextView.setText(chat.getUsername());
+        holder.nameTextView.setText(chat.getName());
         holder.lastMessageTextView.setText(chat.getLastMessage());
 
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(v.getContext(), ChatActivity.class);
-            intent.putExtra("chat_user_name", chat.getUsername());
-            intent.putExtra("chat_user_id", chat.getOdId());
+            intent.putExtra("chat_id", chat.getId());
+            intent.putExtra("chat_name", chat.getName());
             v.getContext().startActivity(intent);
         });
     }
@@ -44,12 +44,12 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ChatViewHold
     }
 
     static class ChatViewHolder extends RecyclerView.ViewHolder {
-        TextView userNameTextView;
+        TextView nameTextView;
         TextView lastMessageTextView;
 
         public ChatViewHolder(@NonNull View itemView) {
             super(itemView);
-            userNameTextView = itemView.findViewById(R.id.user_name);
+            nameTextView = itemView.findViewById(R.id.user_name);
             lastMessageTextView = itemView.findViewById(R.id.last_message);
         }
     }

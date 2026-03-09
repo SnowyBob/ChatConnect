@@ -1,17 +1,22 @@
 package com.example.chatconnect;
 
 public class Chat {
-    private String username;
+    private String id;
+    private String name;
     private String lastMessage;
-    private String odId; // other user's ID
+    private boolean isGroup;
 
-    public Chat(String username, String lastMessage, String odId) {
-        this.username = username;
+    public Chat() {}
+
+    public Chat(String id, String name, String lastMessage, boolean isGroup) {
+        this.id = id;
+        this.name = name;
         this.lastMessage = lastMessage;
-        this.odId = odId;
+        this.isGroup = isGroup;
     }
 
-    public String getUsername() { return username; }
+    public String getId() { return id; }
+    public String getName() { return name; }
     public String getLastMessage() { return lastMessage; }
-    public String getOdId() { return odId; }
+    public boolean isGroup() { return isGroup; }
 }

@@ -17,10 +17,16 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
 
     private final List<Message> messages;
     private final String currentUserId;
+    private boolean isGroup = false;
 
     public MessagesAdapter(List<Message> messages, String currentUserId) {
         this.messages = messages;
         this.currentUserId = currentUserId;
+    }
+
+    public void setGroup(boolean group) {
+        isGroup = group;
+        notifyDataSetChanged();
     }
 
     @Override
@@ -48,7 +54,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = messages.get(position);
-        holder.bind(message);
+        holder.bind(message, isGroup && !message.getSenderId().equals(currentUserId));
     }
 
     @Override
@@ -57,19 +63,29 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
     }
 
     static class MessageViewHolder extends RecyclerView.ViewHolder {
-        TextView messageText, timeText;
+        TextView messageText, timeText, senderNameText;
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
             messageText = itemView.findViewById(R.id.message_text);
             timeText = itemView.findViewById(R.id.time_text);
+            senderNameText = itemView.findViewById(R.id.sender_name_text);
         }
 
-        void bind(Message message) {
+        void bind(Message message, boolean showSenderName) {
             messageText.setText(message.getText());
             if (message.getTimestamp() != null) {
                 SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
                 timeText.setText(sdf.format(message.getTimestamp()));
+            }
+
+            if (senderNameText != null) {
+                if (showSenderName && message.getSenderName() != null) {
+                    senderNameText.setText(message.getSenderName());
+                    senderNameText.setVisibility(View.VISIBLE);
+                } else {
+                    senderNameText.setVisibility(View.GONE);
+                }
             }
         }
     }

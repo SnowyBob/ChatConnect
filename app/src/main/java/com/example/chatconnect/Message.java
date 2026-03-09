@@ -5,15 +5,17 @@ import java.util.Date;
 public class Message {
     private String text;
     private String senderId;
+    private String senderName;
     private Date timestamp;
 
     public Message() {
         // Default constructor required for calls to DataSnapshot.getValue(Message.class)
     }
 
-    public Message(String text, String senderId, Date timestamp) {
+    public Message(String text, String senderId, String senderName, Date timestamp) {
         this.text = text;
         this.senderId = senderId;
+        this.senderName = senderName;
         this.timestamp = timestamp;
     }
 
@@ -31,6 +33,14 @@ public class Message {
 
     public void setSenderId(String senderId) {
         this.senderId = senderId;
+    }
+
+    public String getSenderName() {
+        return senderName;
+    }
+
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
     }
 
     public Date getTimestamp() {

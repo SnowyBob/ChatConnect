@@ -3,14 +3,11 @@ package com.example.chatconnect;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -22,14 +19,15 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
     private RecyclerView chatsRecyclerView;
     private TextView emptyChatsText;
-    private ArrayList<Chat> chats = new ArrayList<>();
+    private ArrayList<Chat> chatsList = new ArrayList<>();
+    private Map<String, Chat> chatsMap = new LinkedHashMap<>();
     private ChatsAdapter adapter;
     private FirebaseFirestore db;
     private String currentUserId;
@@ -55,10 +53,8 @@ public class MainActivity extends AppCompatActivity {
         ImageView settingsButton = findViewById(R.id.settings);
         ImageView profileButton = findViewById(R.id.profile);
 
-        adapter = new ChatsAdapter(chats);
+        adapter = new ChatsAdapter(chatsList);
         chatsRecyclerView.setAdapter(adapter);
-
-        updateUI();
 
         newChatButton.setOnClickListener(v -> {
             startActivity(new Intent(MainActivity.this, NewChatActivity.class));
@@ -76,8 +72,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadChats() {
-        Log.d("MainActivity", "Loading chats for user: " + currentUserId);
-
         db.collection("chats")
                 .whereArrayContains("participants", currentUserId)
                 .addSnapshotListener((snapshots, e) -> {
@@ -86,87 +80,58 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
 
-                    Log.d("MainActivity", "Found " + snapshots.size() + " chats");
+                    if (snapshots != null) {
+                        chatsMap.clear();
+                        for (QueryDocumentSnapshot document : snapshots) {
+                            String chatId = document.getId();
+                            String lastMessage = document.getString("lastMessage");
+                            if (lastMessage == null) lastMessage = "";
+                            
+                            boolean isGroup = Boolean.TRUE.equals(document.getBoolean("isGroup"));
 
-                    chats.clear();
-                    for (QueryDocumentSnapshot document : snapshots) {
-                        ArrayList<String> participants = (ArrayList<String>) document.get("participants");
-                        if (participants != null) {
-                            String otherUserId = null;
-                            for (String id : participants) {
-                                if (!id.equals(currentUserId)) {
-                                    otherUserId = id;
-                                    break;
+                            if (isGroup) {
+                                String groupName = document.getString("name");
+                                chatsMap.put(chatId, new Chat(chatId, groupName != null ? groupName : "Group Chat", lastMessage, true));
+                                refreshAdapter();
+                            } else {
+                                ArrayList<String> participants = (ArrayList<String>) document.get("participants");
+                                if (participants != null) {
+                                    String otherUserId = null;
+                                    for (String id : participants) {
+                                        if (!id.equals(currentUserId)) {
+                                            otherUserId = id;
+                                            break;
+                                        }
+                                    }
+                                    if (otherUserId != null) {
+                                        final String finalOtherUserId = otherUserId;
+                                        final String finalLastMessage = lastMessage;
+                                        db.collection("users").document(otherUserId).get()
+                                                .addOnSuccessListener(userDoc -> {
+                                                    String username = userDoc.getString("username");
+                                                    if (username != null) {
+                                                        chatsMap.put(chatId, new Chat(chatId, username, finalLastMessage, false));
+                                                        refreshAdapter();
+                                                    }
+                                                });
+                                    }
                                 }
                             }
-                            if (otherUserId != null) {
-                                String lastMessage = document.getString("lastMessage");
-                                String odId = otherUserId;
-
-                                db.collection("users").document(otherUserId).get()
-                                        .addOnSuccessListener(userDoc -> {
-                                            String username = userDoc.getString("username");
-                                            if (username != null) {
-                                                chats.add(new Chat(username, lastMessage != null ? lastMessage : "", odId));
-                                                adapter.notifyDataSetChanged();
-                                                updateUI();
-                                            }
-                                        });
-                            }
                         }
+                        refreshAdapter();
                     }
-                    updateUI();
                 });
     }
 
-    private void fetchUsernames(Set<String> userIds) {
-        for (String userId : userIds) {
-            db.collection("users").document(userId).get().addOnSuccessListener(documentSnapshot -> {
-                String username = documentSnapshot.getString("username");
-                if (username != null) {
-                    // For now, we don't have last message, so it's empty
-                    chats.add(new Chat(username, "", userId));
-                    adapter.notifyDataSetChanged();
-                    updateUI();
-                }
-            });
-        }
-    }
-
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_logout) {
-            showLogoutConfirmationDialog();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void showLogoutConfirmationDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Logout")
-                .setMessage("Are you sure you want to logout?")
-                .setPositiveButton("Logout", (dialog, which) -> {
-                    // Sign out from Firebase
-                    FirebaseAuth.getInstance().signOut();
-                    // Redirect to LoginActivity
-                    Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+    private void refreshAdapter() {
+        chatsList.clear();
+        chatsList.addAll(chatsMap.values());
+        adapter.notifyDataSetChanged();
+        updateUI();
     }
 
     private void updateUI() {
-        if (chats.isEmpty()) {
+        if (chatsList.isEmpty()) {
             chatsRecyclerView.setVisibility(View.GONE);
             emptyChatsText.setVisibility(View.VISIBLE);
         } else {

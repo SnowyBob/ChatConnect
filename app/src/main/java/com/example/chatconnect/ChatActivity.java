@@ -1,15 +1,19 @@
 package com.example.chatconnect;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
@@ -29,8 +33,11 @@ public class ChatActivity extends AppCompatActivity {
     private MessagesAdapter adapter;
     private List<Message> messageList = new ArrayList<>();
     private EditText messageEditText;
-    private String chatUserId;
+    private String chatId;
+    private String chatName;
     private String currentUserId;
+    private String currentUserName;
+    private boolean isGroup = false;
     private FirebaseFirestore db;
 
     @Override
@@ -38,21 +45,39 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
-        chatUserId = getIntent().getStringExtra("chat_user_id");
-        String chatUserName = getIntent().getStringExtra("chat_user_name");
+        chatId = getIntent().getStringExtra("chat_id");
+        chatName = getIntent().getStringExtra("chat_name");
+
+        if (chatId == null) {
+            Toast.makeText(this, "Error: Chat not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(chatUserName);
+            getSupportActionBar().setTitle(chatName != null ? chatName : "Chat");
         }
+
+        // Make toolbar title clickable for group details
+        toolbar.setOnClickListener(v -> {
+            if (isGroup) {
+                Intent intent = new Intent(ChatActivity.this, GroupDetailsActivity.class);
+                intent.putExtra("chat_id", chatId);
+                startActivity(intent);
+            }
+        });
 
         db = FirebaseFirestore.getInstance();
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser != null) {
             currentUserId = currentUser.getUid();
+            fetchCurrentUserName();
         }
+
+        checkIfGroup();
 
         messagesRecyclerView = findViewById(R.id.messages_recycler_view);
         messagesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -68,24 +93,47 @@ public class ChatActivity extends AppCompatActivity {
         loadMessages();
     }
 
+    private void fetchCurrentUserName() {
+        db.collection("users").document(currentUserId).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        currentUserName = documentSnapshot.getString("username");
+                    }
+                });
+    }
+
+    private void checkIfGroup() {
+        db.collection("chats").document(chatId).addSnapshotListener((documentSnapshot, e) -> {
+            if (e != null) return;
+            if (documentSnapshot != null && documentSnapshot.exists()) {
+                isGroup = Boolean.TRUE.equals(documentSnapshot.getBoolean("isGroup"));
+                adapter.setGroup(isGroup);
+                
+                // Update title in case it was changed in GroupDetailsActivity
+                String updatedName = documentSnapshot.getString("name");
+                if (isGroup && updatedName != null && getSupportActionBar() != null) {
+                    getSupportActionBar().setTitle(updatedName);
+                }
+            }
+        });
+    }
+
     private void sendMessage() {
         String messageText = messageEditText.getText().toString().trim();
         if (TextUtils.isEmpty(messageText)) {
             return;
         }
 
-        String chatId = getChatId();
-
-        Map<String, Object> chatData = new HashMap<>();
-        chatData.put("lastMessage", messageText);
-        chatData.put("lastMessageTime", new Date());
-        chatData.put("participants", java.util.Arrays.asList(currentUserId, chatUserId));
-        db.collection("chats").document(chatId).set(chatData, com.google.firebase.firestore.SetOptions.merge());
+        Map<String, Object> updateData = new HashMap<>();
+        updateData.put("lastMessage", messageText);
+        updateData.put("timestamp", System.currentTimeMillis());
+        db.collection("chats").document(chatId).update(updateData);
 
         CollectionReference messagesRef = db.collection("chats").document(chatId).collection("messages");
 
         Map<String, Object> message = new HashMap<>();
         message.put("senderId", currentUserId);
+        message.put("senderName", currentUserName != null ? currentUserName : "Unknown");
         message.put("text", messageText);
         message.put("timestamp", new Date());
 
@@ -94,29 +142,24 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void loadMessages() {
-        db.collection("chats").document(getChatId()).collection("messages")
+        db.collection("chats").document(chatId).collection("messages")
                 .orderBy("timestamp", Query.Direction.ASCENDING)
                 .addSnapshotListener((snapshots, e) -> {
                     if (e != null) {
                         return;
                     }
-                    messageList.clear();
-                    for (QueryDocumentSnapshot doc : snapshots) {
-                        Message message = doc.toObject(Message.class);
-                        messageList.add(message);
+                    if (snapshots != null) {
+                        messageList.clear();
+                        for (QueryDocumentSnapshot doc : snapshots) {
+                            Message message = doc.toObject(Message.class);
+                            messageList.add(message);
+                        }
+                        adapter.notifyDataSetChanged();
+                        if (!messageList.isEmpty()) {
+                            messagesRecyclerView.scrollToPosition(messageList.size() - 1);
+                        }
                     }
-                    adapter.notifyDataSetChanged();
-                    messagesRecyclerView.scrollToPosition(messageList.size() - 1);
                 });
-    }
-
-    private String getChatId() {
-        // Create a consistent chat ID between two users
-        if (currentUserId.compareTo(chatUserId) > 0) {
-            return currentUserId + "_" + chatUserId;
-        } else {
-            return chatUserId + "_" + currentUserId;
-        }
     }
 
     @Override

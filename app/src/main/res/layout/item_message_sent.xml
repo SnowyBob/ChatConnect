@@ -13,12 +13,17 @@
         android:background="@drawable/sent_message_background"
         android:padding="12dp"
         android:textColor="@android:color/white"
-        android:textSize="16sp" />
+        android:textSize="16sp"
+        android:maxWidth="280dp"/>
 
     <TextView
         android:id="@+id/time_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="12sp" />
+        android:textSize="11sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="2dp"
+        android:layout_gravity="end"/>
 
 </LinearLayout>
