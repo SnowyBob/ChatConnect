@@ -13,6 +13,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.chatconnect.activities.CommunityListActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
         Button newChatButton = findViewById(R.id.new_chat_button);
         ImageView settingsButton = findViewById(R.id.settings);
         ImageView profileButton = findViewById(R.id.profile);
+        ImageView communitiesButton = findViewById(R.id.communities_button);
 
         adapter = new ChatsAdapter(chatsList);
         chatsRecyclerView.setAdapter(adapter);
@@ -68,10 +70,15 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(MainActivity.this, ProfileActivity.class));
         });
 
+        communitiesButton.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, CommunityListActivity.class));
+        });
+
         loadChats();
     }
 
     private void loadChats() {
+        if (currentUserId == null) return;
         db.collection("chats")
                 .whereArrayContains("participants", currentUserId)
                 .addSnapshotListener((snapshots, e) -> {

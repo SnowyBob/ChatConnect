@@ -42,6 +42,12 @@
         <activity
             android:name=".GroupDetailsActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.CommunityListActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.CommunityDetailActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
