@@ -47,6 +47,8 @@ dependencies {
     implementation(libs.google.firebase.storage)
     implementation(libs.generativeai)
     implementation(libs.guava)
+    implementation(libs.glide)
+    implementation(libs.okhttp)
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)

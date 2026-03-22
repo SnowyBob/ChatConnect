@@ -4,9 +4,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import com.bumptech.glide.Glide;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -66,17 +68,29 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.UserViewHold
     class UserViewHolder extends RecyclerView.ViewHolder {
         TextView nameTextView;
         CheckBox checkBox;
+        ImageView profileImageView;
 
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
             nameTextView = itemView.findViewById(R.id.user_name);
             checkBox = itemView.findViewById(R.id.user_checkbox);
+            profileImageView = itemView.findViewById(R.id.user_profile_image);
         }
 
         public void bind(final User user, final OnUserClickListener onUserClickListener, boolean isSelectionMode, boolean isSelected) {
-            nameTextView.setText(user.getName());
+            nameTextView.setText(user.getUsername());
             checkBox.setVisibility(isSelectionMode ? View.VISIBLE : View.GONE);
             checkBox.setChecked(isSelected);
+
+            if (user.getProfileImageUrl() != null && !user.getProfileImageUrl().isEmpty()) {
+                Glide.with(itemView.getContext())
+                        .load(user.getProfileImageUrl())
+                        .placeholder(R.drawable.ic_profile)
+                        .circleCrop()
+                        .into(profileImageView);
+            } else {
+                profileImageView.setImageResource(R.drawable.ic_profile);
+            }
 
             itemView.setOnClickListener(v -> {
                 if (isSelectionMode) {

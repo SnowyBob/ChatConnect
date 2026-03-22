@@ -171,9 +171,12 @@ public class NewChatActivity extends AppCompatActivity {
                 userList.clear();
                 for (QueryDocumentSnapshot document : task.getResult()) {
                     String uid = document.getId();
-                    String name = document.getString("username");
-                    if (name != null && !uid.equals(currentUserId)) {
-                        userList.add(new User(name, uid));
+                    String username = document.getString("username");
+                    String profileImageUrl = document.getString("profileImageUrl");
+                    if (username != null && !uid.equals(currentUserId)) {
+                        User user = new User(username, uid);
+                        user.setProfileImageUrl(profileImageUrl);
+                        userList.add(user);
                     }
                 }
                 adapter.notifyDataSetChanged();
