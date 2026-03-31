@@ -2,11 +2,11 @@ package com.example.chatconnect.activities;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,6 +40,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
     private CommunityManager communityManager;
     private String currentUserId;
     private String currentUserDisplayName;
+    private String currentUserProfileImageUrl;
 
     private View postButtonsContainer;
     private Button joinButton;
@@ -60,6 +61,13 @@ public class CommunityDetailActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
 
+        // Make the top part clickable to show info
+        View topContainer = findViewById(R.id.top_info_container);
+        if (topContainer != null) {
+            topContainer.setOnClickListener(v -> openCommunityInfo());
+        }
+        toolbar.setOnClickListener(v -> openCommunityInfo());
+
         ((TextView) findViewById(R.id.detail_topic)).setText(getIntent().getStringExtra("community_topic"));
         ((TextView) findViewById(R.id.detail_description)).setText(getIntent().getStringExtra("community_description"));
 
@@ -75,17 +83,24 @@ public class CommunityDetailActivity extends AppCompatActivity {
         findViewById(R.id.fab_generate_ai).setOnClickListener(v -> showAiPromptDialog());
         joinButton.setOnClickListener(v -> joinCommunity());
 
-        fetchCurrentUserDisplayName();
+        fetchCurrentUserInfo();
         loadCommunityAndPermissions();
         loadPosts();
     }
 
-    private void fetchCurrentUserDisplayName() {
+    private void openCommunityInfo() {
+        Intent intent = new Intent(this, CommunityInfoActivity.class);
+        intent.putExtra("community_id", communityId);
+        startActivity(intent);
+    }
+
+    private void fetchCurrentUserInfo() {
         if (currentUserId == null) return;
         FirebaseFirestore.getInstance().collection("users").document(currentUserId).get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         currentUserDisplayName = documentSnapshot.getString("username");
+                        currentUserProfileImageUrl = documentSnapshot.getString("profileImageUrl");
                         if (currentUserDisplayName == null || currentUserDisplayName.isEmpty()) {
                             currentUserDisplayName = FirebaseAuth.getInstance().getCurrentUser().getEmail();
                         }
@@ -100,6 +115,12 @@ public class CommunityDetailActivity extends AppCompatActivity {
                         currentCommunity = value.toObject(Community.class);
                         currentCommunity.setId(value.getId());
                         updateUIBasedOnRole();
+                        
+                        // Check if kicked
+                        if (currentCommunity.getMembers() != null && !currentCommunity.getMembers().containsKey(currentUserId)) {
+                            Toast.makeText(this, "You are no longer a member of this community", Toast.LENGTH_LONG).show();
+                            finish();
+                        }
                     }
                 });
     }
@@ -139,8 +160,8 @@ public class CommunityDetailActivity extends AppCompatActivity {
                 }
             }
             adapter.notifyDataSetChanged();
-            if (!postList.isEmpty()) {
-                recyclerView.scrollToPosition(0);
+            if (!postList.isEmpty() && recyclerView.getScrollState() == RecyclerView.SCROLL_STATE_IDLE) {
+                // Only scroll if we are at the top or idle to avoid jumping
             }
         });
     }
@@ -202,6 +223,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
         String nameToUse = currentUserDisplayName != null ? currentUserDisplayName : "Unknown User";
         Post post = new Post(communityId, currentUserId, nameToUse, content);
         post.setAiGenerated(isAi);
+        post.setAuthorProfileImageUrl(currentUserProfileImageUrl);
         
         communityManager.createPost(post)
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to post", Toast.LENGTH_SHORT).show());

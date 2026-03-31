@@ -10,10 +10,12 @@ public class Post {
     private String communityId;
     private String authorId;
     private String authorName;
+    private String authorProfileImageUrl;
     private String content;
     private Timestamp timestamp;
     private String voiceUrl;
     private boolean aiGenerated;
+    private int replyCount;
 
     public Post() {}
 
@@ -24,6 +26,7 @@ public class Post {
         this.content = content;
         this.timestamp = Timestamp.now();
         this.aiGenerated = false;
+        this.replyCount = 0;
     }
 
     // Getters and Setters
@@ -39,6 +42,9 @@ public class Post {
     public String getAuthorName() { return authorName; }
     public void setAuthorName(String authorName) { this.authorName = authorName; }
 
+    public String getAuthorProfileImageUrl() { return authorProfileImageUrl; }
+    public void setAuthorProfileImageUrl(String authorProfileImageUrl) { this.authorProfileImageUrl = authorProfileImageUrl; }
+
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 
@@ -50,4 +56,7 @@ public class Post {
 
     public boolean isAiGenerated() { return aiGenerated; }
     public void setAiGenerated(boolean aiGenerated) { this.aiGenerated = aiGenerated; }
+
+    public int getReplyCount() { return replyCount; }
+    public void setReplyCount(int replyCount) { this.replyCount = replyCount; }
 }

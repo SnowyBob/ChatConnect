@@ -52,6 +52,22 @@
                 android:text="Update Name"
                 android:backgroundTint="#0088CC"/>
 
+            <Button
+                android:id="@+id/btn_leave_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Leave Group"
+                android:backgroundTint="#C62828"/>
+
+            <Button
+                android:id="@+id/btn_delete_chat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Delete Chat"
+                android:backgroundTint="#C62828"/>
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

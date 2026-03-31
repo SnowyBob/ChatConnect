@@ -17,11 +17,15 @@
             app:titleTextColor="@android:color/white" />
 
         <LinearLayout
+            android:id="@+id/top_info_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp"
-            android:background="#1F1F1F">
+            android:background="#1F1F1F"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
 
             <TextView
                 android:id="@+id/detail_topic"

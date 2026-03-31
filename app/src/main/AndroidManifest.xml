@@ -66,6 +66,12 @@
         <activity
             android:name=".activities.CommunityDetailActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.CommunityInfoActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.ThreadActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
