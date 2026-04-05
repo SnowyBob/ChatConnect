@@ -53,11 +53,26 @@
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/posts_recycler_view"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/posts_recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Blur / Sneak Peak Overlay -->
+        <View
+            android:id="@+id/sneak_peak_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#AA121212"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"/>
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/post_buttons_container"

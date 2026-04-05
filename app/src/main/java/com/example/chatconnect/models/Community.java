@@ -1,6 +1,8 @@
 package com.example.chatconnect.models;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,9 +16,12 @@ public class Community {
     private String ownerId;
     // Map of userId to role string
     private Map<String, String> members;
+    // List of banned user IDs
+    private List<String> bannedUsers;
 
     public Community() {
         this.members = new HashMap<>();
+        this.bannedUsers = new ArrayList<>();
     }
 
     public Community(String id, String name, String description, String topic, String ownerId) {
@@ -27,6 +32,7 @@ public class Community {
         this.ownerId = ownerId;
         this.members = new HashMap<>();
         this.members.put(ownerId, Role.OWNER.name());
+        this.bannedUsers = new ArrayList<>();
     }
 
     // Getters and Setters
@@ -48,6 +54,9 @@ public class Community {
     public Map<String, String> getMembers() { return members; }
     public void setMembers(Map<String, String> members) { this.members = members; }
 
+    public List<String> getBannedUsers() { return bannedUsers; }
+    public void setBannedUsers(List<String> bannedUsers) { this.bannedUsers = bannedUsers; }
+
     /**
      * Helper to get Role for a specific user.
      */
@@ -56,5 +65,9 @@ public class Community {
             return null; // Not a member
         }
         return Role.fromString(members.get(userId));
+    }
+
+    public boolean isBanned(String userId) {
+        return bannedUsers != null && bannedUsers.contains(userId);
     }
 }

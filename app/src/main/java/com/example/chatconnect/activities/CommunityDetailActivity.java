@@ -44,6 +44,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
 
     private View postButtonsContainer;
     private Button joinButton;
+    private View sneakPeakOverlay;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +79,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
 
         postButtonsContainer = findViewById(R.id.post_buttons_container);
         joinButton = findViewById(R.id.btn_join_community);
+        sneakPeakOverlay = findViewById(R.id.sneak_peak_overlay);
 
         findViewById(R.id.fab_create_post).setOnClickListener(v -> showCreatePostDialog());
         findViewById(R.id.fab_generate_ai).setOnClickListener(v -> showAiPromptDialog());
@@ -89,9 +91,13 @@ public class CommunityDetailActivity extends AppCompatActivity {
     }
 
     private void openCommunityInfo() {
-        Intent intent = new Intent(this, CommunityInfoActivity.class);
-        intent.putExtra("community_id", communityId);
-        startActivity(intent);
+        if (currentCommunity != null && currentCommunity.getUserRole(currentUserId) != null) {
+            Intent intent = new Intent(this, CommunityInfoActivity.class);
+            intent.putExtra("community_id", communityId);
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "Join the community to see details", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void fetchCurrentUserInfo() {
@@ -114,13 +120,14 @@ public class CommunityDetailActivity extends AppCompatActivity {
                     if (value != null && value.exists()) {
                         currentCommunity = value.toObject(Community.class);
                         currentCommunity.setId(value.getId());
-                        updateUIBasedOnRole();
-
-                        // Check if kicked
-                        if (currentCommunity.getMembers() != null && !currentCommunity.getMembers().containsKey(currentUserId)) {
-                            Toast.makeText(this, "You are no longer a member of this community", Toast.LENGTH_LONG).show();
+                        
+                        if (currentCommunity.isBanned(currentUserId)) {
+                            Toast.makeText(this, "You are banned from this community", Toast.LENGTH_LONG).show();
                             finish();
+                            return;
                         }
+                        
+                        updateUIBasedOnRole();
                     }
                 });
     }
@@ -133,8 +140,12 @@ public class CommunityDetailActivity extends AppCompatActivity {
         if (role == null) {
             joinButton.setVisibility(View.VISIBLE);
             postButtonsContainer.setVisibility(View.GONE);
+            sneakPeakOverlay.setVisibility(View.VISIBLE);
+            recyclerView.suppressLayout(true); // Disable interaction
         } else {
             joinButton.setVisibility(View.GONE);
+            sneakPeakOverlay.setVisibility(View.GONE);
+            recyclerView.suppressLayout(false);
             if (communityManager.canPost(currentCommunity, currentUserId)) {
                 postButtonsContainer.setVisibility(View.VISIBLE);
             } else {
@@ -160,9 +171,6 @@ public class CommunityDetailActivity extends AppCompatActivity {
                 }
             }
             adapter.notifyDataSetChanged();
-            if (!postList.isEmpty() && recyclerView.getScrollState() == RecyclerView.SCROLL_STATE_IDLE) {
-                // Only scroll if we are at the top or idle to avoid jumping
-            }
         });
     }
 
