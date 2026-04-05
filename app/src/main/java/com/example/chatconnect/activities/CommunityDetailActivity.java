@@ -115,7 +115,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
                         currentCommunity = value.toObject(Community.class);
                         currentCommunity.setId(value.getId());
                         updateUIBasedOnRole();
-                        
+
                         // Check if kicked
                         if (currentCommunity.getMembers() != null && !currentCommunity.getMembers().containsKey(currentUserId)) {
                             Toast.makeText(this, "You are no longer a member of this community", Toast.LENGTH_LONG).show();
@@ -129,7 +129,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
         if (currentCommunity == null || currentUserId == null) return;
 
         Role role = currentCommunity.getUserRole(currentUserId);
-        
+
         if (role == null) {
             joinButton.setVisibility(View.VISIBLE);
             postButtonsContainer.setVisibility(View.GONE);

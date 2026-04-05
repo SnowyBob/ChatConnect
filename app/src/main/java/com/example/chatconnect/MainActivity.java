@@ -95,10 +95,11 @@ public class MainActivity extends AppCompatActivity {
                             if (lastMessage == null) lastMessage = "";
                             
                             boolean isGroup = Boolean.TRUE.equals(document.getBoolean("isGroup"));
+                            String profileImageUrl = document.getString("profileImageUrl");
 
                             if (isGroup) {
                                 String groupName = document.getString("name");
-                                chatsMap.put(chatId, new Chat(chatId, groupName != null ? groupName : "Group Chat", lastMessage, true));
+                                chatsMap.put(chatId, new Chat(chatId, groupName != null ? groupName : "Group Chat", lastMessage, true, profileImageUrl));
                                 refreshAdapter();
                             } else {
                                 ArrayList<String> participants = (ArrayList<String>) document.get("participants");
@@ -111,13 +112,13 @@ public class MainActivity extends AppCompatActivity {
                                         }
                                     }
                                     if (otherUserId != null) {
-                                        final String finalOtherUserId = otherUserId;
                                         final String finalLastMessage = lastMessage;
                                         db.collection("users").document(otherUserId).get()
                                                 .addOnSuccessListener(userDoc -> {
                                                     String username = userDoc.getString("username");
+                                                    String userProfileImageUrl = userDoc.getString("profileImageUrl");
                                                     if (username != null) {
-                                                        chatsMap.put(chatId, new Chat(chatId, username, finalLastMessage, false));
+                                                        chatsMap.put(chatId, new Chat(chatId, username, finalLastMessage, false, userProfileImageUrl));
                                                         refreshAdapter();
                                                     }
                                                 });

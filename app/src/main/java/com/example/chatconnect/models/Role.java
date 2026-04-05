@@ -6,7 +6,8 @@ package com.example.chatconnect.models;
 public enum Role {
     OWNER,
     ADMIN,
-    MEMBER;
+    MEMBER,
+    BANNED;
 
     public static Role fromString(String roleStr) {
         if (roleStr == null) return MEMBER;

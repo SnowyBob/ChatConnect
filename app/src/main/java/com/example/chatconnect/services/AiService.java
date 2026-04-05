@@ -39,6 +39,53 @@ public class AiService {
     }
 
     /**
+     * Generates a reply based on the provided conversation context.
+     */
+    public void generateReply(String generatingUser, String messagesContext, AiCallback callback) {
+        String prompt = "You are generating a reply in a chat conversation for the user: " + generatingUser + ".\n\n" +
+                "Here are the last messages in the conversation:\n" +
+                messagesContext + "\n\n" +
+                "The last message is the one you must reply to.\n\n" +
+                "Instructions:\n" +
+                "* Reply ONLY to the last message\n" +
+                "* Use previous messages only as context\n" +
+                "* Keep the reply natural and human-like\n" +
+                "* Match the tone of the conversation\n" +
+                "* Keep it concise (1-3 sentences)\n" +
+                "* Do NOT mention AI\n" +
+                "* Do NOT explain anything\n\n" +
+                "Only output the reply text.";
+
+        Content content = new Content.Builder()
+                .addText(prompt)
+                .build();
+
+        try {
+            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
+
+            Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
+                @Override
+                public void onSuccess(GenerateContentResponse result) {
+                    String text = result.getText();
+                    if (text == null || text.trim().isEmpty()) {
+                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty reply.")));
+                    } else {
+                        mainHandler.post(() -> callback.onGenerated(text.trim()));
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    Log.e(TAG, "AI Reply generation failed", t);
+                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
+                }
+            }, executor);
+        } catch (Exception e) {
+            callback.onError(e);
+        }
+    }
+
+    /**
      * Generates a high-quality post based on community topic, description, and user prompt using Gemini.
      */
     public void generatePost(Community community, String userPrompt, AiCallback callback) {

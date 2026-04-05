@@ -2,11 +2,14 @@ package com.example.chatconnect.activities;
 
 import android.os.Bundle;
 import android.text.Layout;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,14 +21,18 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatconnect.Message;
 import com.example.chatconnect.MessagesAdapter;
 import com.example.chatconnect.R;
+import com.example.chatconnect.services.AiService;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ThreadActivity extends AppCompatActivity {
 
@@ -41,7 +48,17 @@ public class ThreadActivity extends AppCompatActivity {
     private List<Message> messageList = new ArrayList<>();
     private EditText replyEdit;
     private View sendBtn;
+    private ImageView btnAiReply;
+    private ProgressBar aiProgressBar;
+    
+    // Reply UI
+    private RelativeLayout replyPreviewLayout;
+    private TextView replyPreviewName, replyPreviewText;
+    private ImageView btnCancelReply;
+    private Message replyTargetMessage = null;
+
     private FirebaseFirestore db;
+    private AiService aiService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +72,7 @@ public class ThreadActivity extends AppCompatActivity {
         currentUserId = FirebaseAuth.getInstance().getUid();
 
         db = FirebaseFirestore.getInstance();
+        aiService = new AiService();
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -70,10 +88,9 @@ public class ThreadActivity extends AppCompatActivity {
         View parentScroll = findViewById(R.id.parent_post_scroll);
         TextView readMoreBtn = findViewById(R.id.btn_read_more);
 
-        // Limit the height of the parent post area so it doesn't push the input off screen
         DisplayMetrics displayMetrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        int maxHeight = (int) (displayMetrics.heightPixels * 0.4); // Max 40% of screen height
+        int maxHeight = (int) (displayMetrics.heightPixels * 0.4);
 
         parentScroll.post(() -> {
             if (parentScroll.getHeight() > maxHeight) {
@@ -83,7 +100,6 @@ public class ThreadActivity extends AppCompatActivity {
             }
         });
 
-        // Check if content is truncated
         contentTextView.post(() -> {
             Layout layout = contentTextView.getLayout();
             if (layout != null) {
@@ -99,13 +115,10 @@ public class ThreadActivity extends AppCompatActivity {
         readMoreBtn.setOnClickListener(v -> {
             contentTextView.setMaxLines(Integer.MAX_VALUE);
             readMoreBtn.setVisibility(View.GONE);
-            
-            // Re-apply height constraint after expansion just in case
             parentScroll.post(() -> {
                 ViewGroup.LayoutParams params = parentScroll.getLayoutParams();
                 params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 parentScroll.setLayoutParams(params);
-                
                 parentScroll.post(() -> {
                     if (parentScroll.getHeight() > maxHeight) {
                         params.height = maxHeight;
@@ -118,9 +131,34 @@ public class ThreadActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.thread_recycler_view);
         replyEdit = findViewById(R.id.edit_thread_message);
         sendBtn = findViewById(R.id.btn_send_reply);
+        btnAiReply = findViewById(R.id.btn_ai_reply);
+        aiProgressBar = findViewById(R.id.ai_progress_bar);
+
+        // Reply UI Initialization
+        replyPreviewLayout = findViewById(R.id.reply_preview_layout);
+        replyPreviewName = findViewById(R.id.reply_preview_name);
+        replyPreviewText = findViewById(R.id.reply_preview_text);
+        btnCancelReply = findViewById(R.id.btn_cancel_reply);
 
         adapter = new MessagesAdapter(messageList, currentUserId);
-        adapter.setGroup(true); // Show names in threads
+        adapter.setGroup(true);
+        
+        // Reply Listeners
+        adapter.setOnReplyClickListener(message -> {
+            replyTargetMessage = message;
+            showReplyPreview(message);
+        });
+
+        adapter.setOnMessageNavigateListener(messageId -> {
+            int position = adapter.getMessagePosition(messageId);
+            if (position != -1) {
+                recyclerView.scrollToPosition(position);
+                adapter.highlightMessage(messageId);
+            } else {
+                Toast.makeText(this, "Message not found", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
@@ -128,12 +166,61 @@ public class ThreadActivity extends AppCompatActivity {
         loadMessages();
 
         sendBtn.setOnClickListener(v -> sendReply());
+        btnAiReply.setOnClickListener(v -> generateAiReply());
+        btnCancelReply.setOnClickListener(v -> cancelReply());
+    }
+
+    private void showReplyPreview(Message message) {
+        replyPreviewName.setText(message.getSenderName());
+        replyPreviewText.setText(message.getText());
+        replyPreviewLayout.setVisibility(View.VISIBLE);
+        replyEdit.requestFocus();
+    }
+
+    private void cancelReply() {
+        replyTargetMessage = null;
+        replyPreviewLayout.setVisibility(View.GONE);
     }
 
     private void fetchCurrentUserInfo() {
         db.collection("users").document(currentUserId).get().addOnSuccessListener(doc -> {
             if (doc.exists()) {
                 currentUserName = doc.getString("username");
+            }
+        });
+    }
+
+    private void generateAiReply() {
+        StringBuilder contextBuilder = new StringBuilder();
+        contextBuilder.append(parentAuthor).append(": ").append(parentContent).append("\n");
+        
+        int start = Math.max(0, messageList.size() - 9);
+        for (int i = start; i < messageList.size(); i++) {
+            Message m = messageList.get(i);
+            contextBuilder.append(m.getSenderName()).append(": ").append(m.getText()).append("\n");
+        }
+
+        callAiService(contextBuilder.toString().trim());
+    }
+
+    private void callAiService(String context) {
+        btnAiReply.setEnabled(false);
+        aiProgressBar.setVisibility(View.VISIBLE);
+        
+        aiService.generateReply(currentUserName, context, new AiService.AiCallback() {
+            @Override
+            public void onGenerated(String text) {
+                btnAiReply.setEnabled(true);
+                aiProgressBar.setVisibility(View.GONE);
+                replyEdit.setText(text);
+                replyEdit.setSelection(text.length());
+            }
+
+            @Override
+            public void onError(Exception e) {
+                btnAiReply.setEnabled(true);
+                aiProgressBar.setVisibility(View.GONE);
+                Toast.makeText(ThreadActivity.this, "AI Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -146,10 +233,12 @@ public class ThreadActivity extends AppCompatActivity {
                     if (value != null) {
                         messageList.clear();
                         for (QueryDocumentSnapshot doc : value) {
-                            messageList.add(doc.toObject(Message.class));
+                            Message message = doc.toObject(Message.class);
+                            message.setMessageId(doc.getId());
+                            messageList.add(message);
                         }
                         adapter.notifyDataSetChanged();
-                        if (!messageList.isEmpty()) {
+                        if (!messageList.isEmpty() && recyclerView.getScrollState() == RecyclerView.SCROLL_STATE_IDLE) {
                             recyclerView.scrollToPosition(messageList.size() - 1);
                         }
                     }
@@ -158,16 +247,26 @@ public class ThreadActivity extends AppCompatActivity {
 
     private void sendReply() {
         String text = replyEdit.getText().toString().trim();
-        if (text.isEmpty()) return;
+        if (TextUtils.isEmpty(text)) return;
 
-        Message message = new Message(text, currentUserId, currentUserName, new Date());
-        
+        Map<String, Object> message = new HashMap<>();
+        message.put("senderId", currentUserId);
+        message.put("senderName", currentUserName != null ? currentUserName : "Unknown");
+        message.put("text", text);
+        message.put("timestamp", new Date());
+
+        if (replyTargetMessage != null) {
+            message.put("replyToMessageId", replyTargetMessage.getMessageId());
+            message.put("replyToText", replyTargetMessage.getText());
+            message.put("replyToSenderName", replyTargetMessage.getSenderName());
+        }
+
         db.collection("communities").document(communityId)
                 .collection("posts").document(postId)
                 .collection("replies").add(message)
                 .addOnSuccessListener(aVoid -> {
                     replyEdit.setText("");
-                    // Increment reply count on parent post
+                    cancelReply();
                     db.collection("communities").document(communityId)
                             .collection("posts").document(postId)
                             .update("replyCount", com.google.firebase.firestore.FieldValue.increment(1));

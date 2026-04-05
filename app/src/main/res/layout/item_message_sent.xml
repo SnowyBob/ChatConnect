@@ -1,29 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="8dp"
-    android:gravity="end">
+    android:padding="8dp">
 
-    <TextView
-        android:id="@+id/message_text"
+    <LinearLayout
+        android:id="@+id/message_bubble"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
         android:background="@drawable/sent_message_background"
+        android:orientation="vertical"
         android:padding="12dp"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        android:maxWidth="280dp"/>
+        android:maxWidth="280dp">
 
-    <TextView
-        android:id="@+id/time_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="11sp"
-        android:textColor="#AAAAAA"
-        android:layout_marginEnd="12dp"
-        android:layout_marginTop="2dp"
-        android:layout_gravity="end"/>
+        <LinearLayout
+            android:id="@+id/reply_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:background="#33FFFFFF"
+            android:orientation="vertical"
+            android:padding="6dp"
+            android:visibility="gone">
 
-</LinearLayout>
+            <TextView
+                android:id="@+id/reply_sender_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#81D4FA"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/reply_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#DDFFFFFF"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/message_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/time_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="2dp"
+            android:textColor="#AAAAAA"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/btn_reply"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_toStartOf="@id/message_bubble"
+        android:layout_alignTop="@id/message_bubble"
+        android:layout_alignBottom="@id/message_bubble"
+        android:layout_marginEnd="4dp"
+        android:src="@android:drawable/ic_menu_revert"
+        android:alpha="0.5"
+        app:tint="@android:color/white"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:scaleType="centerInside"/>
+
+</RelativeLayout>
