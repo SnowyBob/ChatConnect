@@ -105,15 +105,7 @@ public class ChatActivity extends AppCompatActivity {
             showReplyPreview(message);
         });
 
-        adapter.setOnMessageNavigateListener(messageId -> {
-            int position = adapter.getMessagePosition(messageId);
-            if (position != -1) {
-                messagesRecyclerView.scrollToPosition(position);
-                adapter.highlightMessage(messageId);
-            } else {
-                Toast.makeText(this, "Message not found", Toast.LENGTH_SHORT).show();
-            }
-        });
+        adapter.setOnMessageNavigateListener(this::navigateToMessage);
 
         messagesRecyclerView.setAdapter(adapter);
 
@@ -134,6 +126,16 @@ public class ChatActivity extends AppCompatActivity {
         btnAiReply.setOnClickListener(v -> generateAiReply());
 
         loadMessages();
+    }
+
+    private void navigateToMessage(String messageId) {
+        int position = adapter.getMessagePosition(messageId);
+        if (position != -1) {
+            messagesRecyclerView.scrollToPosition(position);
+            adapter.highlightMessage(messageId);
+        } else {
+            Toast.makeText(this, "Message not found", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void showReplyPreview(Message message) {
@@ -252,11 +254,19 @@ public class ChatActivity extends AppCompatActivity {
                         messageList.clear();
                         for (QueryDocumentSnapshot doc : snapshots) {
                             Message message = doc.toObject(Message.class);
-                            message.setMessageId(doc.getId()); // Set document ID for reply navigation
+                            message.setMessageId(doc.getId());
                             messageList.add(message);
                         }
                         adapter.notifyDataSetChanged();
-                        if (!messageList.isEmpty()) {
+                        
+                        // Handle initial navigation to a specific message (from Search or Reply)
+                        String scrollToId = getIntent().getStringExtra("scroll_to_message_id");
+                        if (scrollToId != null) {
+                            messagesRecyclerView.post(() -> {
+                                navigateToMessage(scrollToId);
+                                getIntent().removeExtra("scroll_to_message_id");
+                            });
+                        } else if (!messageList.isEmpty()) {
                             messagesRecyclerView.scrollToPosition(messageList.size() - 1);
                         }
                     }

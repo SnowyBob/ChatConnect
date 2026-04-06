@@ -72,6 +72,9 @@
         <activity
             android:name=".activities.ThreadActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.SearchActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

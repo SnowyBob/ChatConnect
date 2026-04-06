@@ -142,4 +142,58 @@ public class AiService {
             callback.onError(e);
         }
     }
+
+    public void searchMessages(String formattedMessages, String userPrompt, AiCallback callback) {
+        String prompt = "You are searching a chat conversation for relevant messages.\n\n" +
+                "Here are the messages:\n" +
+                formattedMessages + "\n\n" +
+                "Search query:\n" +
+                "\"" + userPrompt + "\"\n\n" +
+                "Instructions:\n" +
+                "- Return the top 3 messages most relevant to the search query\n" +
+                "- Include: messageId, chatName, senderName, messageText, chatId\n" +
+                "- Only output the messages in JSON format like:\n" +
+                "[\n" +
+                "  {\n" +
+                "    \"messageId\": \"id1\",\n" +
+                "    \"chatId\": \"chatId1\",\n" +
+                "    \"chatName\": \"Chat A\",\n" +
+                "    \"senderName\": \"User1\",\n" +
+                "    \"messageText\": \"...\"\n" +
+                "  },\n" +
+                "  {...},\n" +
+                "  {...}\n" +
+                "]\n" +
+                "- Do NOT include explanations or extra text";
+
+        Content content = new Content.Builder()
+                .addText(prompt)
+                .build();
+
+        try {
+            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
+
+            Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
+                @Override
+                public void onSuccess(GenerateContentResponse result) {
+                    String text = result.getText();
+                    if (text == null || text.trim().isEmpty()) {
+                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty search results.")));
+                    } else {
+                        // Sometimes AI wraps JSON in markdown blocks
+                        String cleanedJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
+                        mainHandler.post(() -> callback.onGenerated(cleanedJson));
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    Log.e(TAG, "AI Search failed", t);
+                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
+                }
+            }, executor);
+        } catch (Exception e) {
+            callback.onError(e);
+        }
+    }
 }

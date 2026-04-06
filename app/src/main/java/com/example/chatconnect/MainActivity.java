@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatconnect.activities.CommunityListActivity;
+import com.example.chatconnect.activities.SearchActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -54,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
         ImageView settingsButton = findViewById(R.id.settings);
         ImageView profileButton = findViewById(R.id.profile);
         ImageView communitiesButton = findViewById(R.id.communities_button);
+        ImageView searchButton = findViewById(R.id.search_button);
 
         adapter = new ChatsAdapter(chatsList);
         chatsRecyclerView.setAdapter(adapter);
@@ -72,6 +74,10 @@ public class MainActivity extends AppCompatActivity {
 
         communitiesButton.setOnClickListener(v -> {
             startActivity(new Intent(MainActivity.this, CommunityListActivity.class));
+        });
+
+        searchButton.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, SearchActivity.class));
         });
 
         loadChats();
