@@ -102,10 +102,19 @@ public class MainActivity extends AppCompatActivity {
                             
                             boolean isGroup = Boolean.TRUE.equals(document.getBoolean("isGroup"));
                             String profileImageUrl = document.getString("profileImageUrl");
+                            
+                            // Load unread count for current user
+                            int unreadCount = 0;
+                            Map<String, Long> unreadCounts = (Map<String, Long>) document.get("unreadCounts");
+                            if (unreadCounts != null && unreadCounts.containsKey(currentUserId)) {
+                                unreadCount = unreadCounts.get(currentUserId).intValue();
+                            }
 
                             if (isGroup) {
                                 String groupName = document.getString("name");
-                                chatsMap.put(chatId, new Chat(chatId, groupName != null ? groupName : "Group Chat", lastMessage, true, profileImageUrl));
+                                Chat chat = new Chat(chatId, groupName != null ? groupName : "Group Chat", lastMessage, true, profileImageUrl);
+                                chat.setUnreadCount(unreadCount);
+                                chatsMap.put(chatId, chat);
                                 refreshAdapter();
                             } else {
                                 ArrayList<String> participants = (ArrayList<String>) document.get("participants");
@@ -119,12 +128,15 @@ public class MainActivity extends AppCompatActivity {
                                     }
                                     if (otherUserId != null) {
                                         final String finalLastMessage = lastMessage;
+                                        final int finalUnreadCount = unreadCount;
                                         db.collection("users").document(otherUserId).get()
                                                 .addOnSuccessListener(userDoc -> {
                                                     String username = userDoc.getString("username");
                                                     String userProfileImageUrl = userDoc.getString("profileImageUrl");
                                                     if (username != null) {
-                                                        chatsMap.put(chatId, new Chat(chatId, username, finalLastMessage, false, userProfileImageUrl));
+                                                        Chat chat = new Chat(chatId, username, finalLastMessage, false, userProfileImageUrl);
+                                                        chat.setUnreadCount(finalUnreadCount);
+                                                        chatsMap.put(chatId, chat);
                                                         refreshAdapter();
                                                     }
                                                 });

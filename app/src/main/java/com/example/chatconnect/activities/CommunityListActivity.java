@@ -29,6 +29,7 @@ public class CommunityListActivity extends AppCompatActivity {
     private CommunityAdapter adapter;
     private List<Community> communityList = new ArrayList<>();
     private CommunityManager communityManager;
+    private String currentUserId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,10 +44,11 @@ public class CommunityListActivity extends AppCompatActivity {
         }
 
         communityManager = CommunityManager.getInstance();
+        currentUserId = FirebaseAuth.getInstance().getUid();
 
         recyclerView = findViewById(R.id.communities_recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new CommunityAdapter(communityList, community -> {
+        adapter = new CommunityAdapter(communityList, currentUserId, community -> {
             Intent intent = new Intent(this, CommunityDetailActivity.class);
             intent.putExtra("community_id", community.getId());
             intent.putExtra("community_name", community.getName());

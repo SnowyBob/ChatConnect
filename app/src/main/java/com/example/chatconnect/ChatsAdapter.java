@@ -41,6 +41,14 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ChatViewHold
             holder.profileImageView.setImageResource(R.drawable.ic_profile);
         }
 
+        // Unread Badge logic
+        if (chat.getUnreadCount() > 0) {
+            holder.unreadBadge.setVisibility(View.VISIBLE);
+            holder.unreadBadge.setText(String.valueOf(chat.getUnreadCount()));
+        } else {
+            holder.unreadBadge.setVisibility(View.GONE);
+        }
+
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(v.getContext(), ChatActivity.class);
             intent.putExtra("chat_id", chat.getId());
@@ -58,12 +66,14 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ChatViewHold
         TextView nameTextView;
         TextView lastMessageTextView;
         ShapeableImageView profileImageView;
+        TextView unreadBadge;
 
         public ChatViewHolder(@NonNull View itemView) {
             super(itemView);
             nameTextView = itemView.findViewById(R.id.user_name);
             lastMessageTextView = itemView.findViewById(R.id.last_message);
             profileImageView = itemView.findViewById(R.id.profile_image);
+            unreadBadge = itemView.findViewById(R.id.unread_badge);
         }
     }
 }

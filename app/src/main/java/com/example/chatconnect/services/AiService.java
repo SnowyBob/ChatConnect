@@ -34,6 +34,7 @@ public class AiService {
     }
 
     public AiService() {
+        // Use a valid model name. gemini-1.5-flash is widely available.
         GenerativeModel gm = new GenerativeModel("gemini-2.5-flash", GEMINI_API_KEY);
         model = GenerativeModelFutures.from(gm);
     }

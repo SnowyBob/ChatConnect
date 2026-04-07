@@ -88,6 +88,14 @@ public class CommunityDetailActivity extends AppCompatActivity {
         fetchCurrentUserInfo();
         loadCommunityAndPermissions();
         loadPosts();
+        
+        resetUnreadCount();
+    }
+
+    private void resetUnreadCount() {
+        if (currentUserId == null || communityId == null) return;
+        FirebaseFirestore.getInstance().collection("communities").document(communityId)
+                .update("unreadCounts." + currentUserId, 0);
     }
 
     private void openCommunityInfo() {
@@ -234,7 +242,25 @@ public class CommunityDetailActivity extends AppCompatActivity {
         post.setAuthorProfileImageUrl(currentUserProfileImageUrl);
         
         communityManager.createPost(post)
+                .addOnSuccessListener(aVoid -> {
+                    // Increment unread counts for all members except the author
+                    if (currentCommunity != null && currentCommunity.getMembers() != null) {
+                        for (String memberId : currentCommunity.getMembers().keySet()) {
+                            if (!memberId.equals(currentUserId)) {
+                                FirebaseFirestore.getInstance().collection("communities")
+                                        .document(communityId)
+                                        .update("unreadCounts." + memberId, com.google.firebase.firestore.FieldValue.increment(1));
+                            }
+                        }
+                    }
+                })
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to post", Toast.LENGTH_SHORT).show());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resetUnreadCount();
     }
 
     @Override

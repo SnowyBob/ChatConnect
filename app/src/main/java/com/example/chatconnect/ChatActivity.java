@@ -20,6 +20,7 @@ import com.example.chatconnect.services.AiService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -51,6 +52,7 @@ public class ChatActivity extends AppCompatActivity {
     private String currentUserName;
     private String currentUserProfileImageUrl;
     private boolean isGroup = false;
+    private List<String> participants = new ArrayList<>();
     private FirebaseFirestore db;
     private AiService aiService;
 
@@ -92,7 +94,8 @@ public class ChatActivity extends AppCompatActivity {
             fetchCurrentUserInfo();
         }
 
-        checkIfGroup();
+        checkChatStatus();
+        resetUnreadCount();
 
         messagesRecyclerView = findViewById(R.id.messages_recycler_view);
         messagesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -160,11 +163,12 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
 
-    private void checkIfGroup() {
+    private void checkChatStatus() {
         db.collection("chats").document(chatId).addSnapshotListener((documentSnapshot, e) -> {
             if (e != null) return;
             if (documentSnapshot != null && documentSnapshot.exists()) {
                 isGroup = Boolean.TRUE.equals(documentSnapshot.getBoolean("isGroup"));
+                participants = (List<String>) documentSnapshot.get("participants");
                 adapter.setGroup(isGroup);
                 
                 String updatedName = documentSnapshot.getString("name");
@@ -173,6 +177,12 @@ public class ChatActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void resetUnreadCount() {
+        if (currentUserId == null || chatId == null) return;
+        db.collection("chats").document(chatId)
+                .update("unreadCounts." + currentUserId, 0);
     }
 
     private void generateAiReply() {
@@ -218,6 +228,16 @@ public class ChatActivity extends AppCompatActivity {
         Map<String, Object> updateData = new HashMap<>();
         updateData.put("lastMessage", messageText);
         updateData.put("timestamp", System.currentTimeMillis());
+        
+        // Increment unread counts for all other participants
+        if (participants != null) {
+            for (String participantId : participants) {
+                if (!participantId.equals(currentUserId)) {
+                    updateData.put("unreadCounts." + participantId, FieldValue.increment(1));
+                }
+            }
+        }
+
         db.collection("chats").document(chatId).update(updateData);
 
         CollectionReference messagesRef = db.collection("chats").document(chatId).collection("messages");
@@ -271,6 +291,12 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                 });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resetUnreadCount();
     }
 
     @Override

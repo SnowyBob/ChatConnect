@@ -38,13 +38,14 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
-    implementation(libs.firebase.bom)
+    
+    // Firebase using BOM
+    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
-    implementation(libs.google.firebase.auth)
-    implementation(libs.google.firebase.firestore)
-    implementation(libs.google.firebase.storage)
+    implementation(libs.firebase.messaging)
+    
     implementation(libs.generativeai)
     implementation(libs.guava)
     implementation(libs.glide)
@@ -52,6 +53,7 @@ dependencies {
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

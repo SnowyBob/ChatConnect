@@ -13,14 +13,16 @@ import java.util.List;
 public class CommunityAdapter extends RecyclerView.Adapter<CommunityAdapter.ViewHolder> {
 
     private List<Community> communities;
+    private String currentUserId;
     private OnCommunityClickListener listener;
 
     public interface OnCommunityClickListener {
         void onCommunityClick(Community community);
     }
 
-    public CommunityAdapter(List<Community> communities, OnCommunityClickListener listener) {
+    public CommunityAdapter(List<Community> communities, String currentUserId, OnCommunityClickListener listener) {
         this.communities = communities;
+        this.currentUserId = currentUserId;
         this.listener = listener;
     }
 
@@ -37,6 +39,16 @@ public class CommunityAdapter extends RecyclerView.Adapter<CommunityAdapter.View
         holder.nameText.setText(community.getName());
         holder.topicText.setText(community.getTopic());
         holder.descriptionText.setText(community.getDescription());
+        
+        // Unread Badge logic for communities
+        int unread = community.getUnreadCount(currentUserId);
+        if (unread > 0) {
+            holder.unreadBadge.setVisibility(View.VISIBLE);
+            holder.unreadBadge.setText(String.valueOf(unread));
+        } else {
+            holder.unreadBadge.setVisibility(View.GONE);
+        }
+        
         holder.itemView.setOnClickListener(v -> listener.onCommunityClick(community));
     }
 
@@ -46,13 +58,14 @@ public class CommunityAdapter extends RecyclerView.Adapter<CommunityAdapter.View
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView nameText, topicText, descriptionText;
+        TextView nameText, topicText, descriptionText, unreadBadge;
 
         ViewHolder(View itemView) {
             super(itemView);
             nameText = itemView.findViewById(R.id.community_name);
             topicText = itemView.findViewById(R.id.community_topic);
             descriptionText = itemView.findViewById(R.id.community_description);
+            unreadBadge = itemView.findViewById(R.id.community_unread_badge);
         }
     }
 }

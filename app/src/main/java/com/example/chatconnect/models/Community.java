@@ -18,10 +18,13 @@ public class Community {
     private Map<String, String> members;
     // List of banned user IDs
     private List<String> bannedUsers;
+    // Map of userId to unread count
+    private Map<String, Long> unreadCounts;
 
     public Community() {
         this.members = new HashMap<>();
         this.bannedUsers = new ArrayList<>();
+        this.unreadCounts = new HashMap<>();
     }
 
     public Community(String id, String name, String description, String topic, String ownerId) {
@@ -33,6 +36,7 @@ public class Community {
         this.members = new HashMap<>();
         this.members.put(ownerId, Role.OWNER.name());
         this.bannedUsers = new ArrayList<>();
+        this.unreadCounts = new HashMap<>();
     }
 
     // Getters and Setters
@@ -56,6 +60,16 @@ public class Community {
 
     public List<String> getBannedUsers() { return bannedUsers; }
     public void setBannedUsers(List<String> bannedUsers) { this.bannedUsers = bannedUsers; }
+
+    public Map<String, Long> getUnreadCounts() { return unreadCounts; }
+    public void setUnreadCounts(Map<String, Long> unreadCounts) { this.unreadCounts = unreadCounts; }
+
+    public int getUnreadCount(String userId) {
+        if (unreadCounts != null && unreadCounts.containsKey(userId)) {
+            return unreadCounts.get(userId).intValue();
+        }
+        return 0;
+    }
 
     /**
      * Helper to get Role for a specific user.
