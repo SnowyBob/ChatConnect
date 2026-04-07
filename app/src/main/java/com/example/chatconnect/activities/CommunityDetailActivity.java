@@ -22,13 +22,16 @@ import com.example.chatconnect.models.Community;
 import com.example.chatconnect.models.Post;
 import com.example.chatconnect.models.Role;
 import com.example.chatconnect.services.AiService;
+import com.example.chatconnect.utils.ChatState;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class CommunityDetailActivity extends AppCompatActivity {
 
@@ -45,6 +48,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
     private View postButtonsContainer;
     private Button joinButton;
     private View sneakPeakOverlay;
+    private ListenerRegistration communityListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +58,9 @@ public class CommunityDetailActivity extends AppCompatActivity {
         communityId = getIntent().getStringExtra("community_id");
         communityManager = CommunityManager.getInstance();
         currentUserId = FirebaseAuth.getInstance().getUid();
+
+        // Track active community for notification suppression
+        ChatState.setActiveChatId(communityId);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -88,8 +95,6 @@ public class CommunityDetailActivity extends AppCompatActivity {
         fetchCurrentUserInfo();
         loadCommunityAndPermissions();
         loadPosts();
-        
-        resetUnreadCount();
     }
 
     private void resetUnreadCount() {
@@ -123,7 +128,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
     }
 
     private void loadCommunityAndPermissions() {
-        FirebaseFirestore.getInstance().collection("communities").document(communityId)
+        communityListener = FirebaseFirestore.getInstance().collection("communities").document(communityId)
                 .addSnapshotListener((value, error) -> {
                     if (value != null && value.exists()) {
                         currentCommunity = value.toObject(Community.class);
@@ -133,6 +138,14 @@ public class CommunityDetailActivity extends AppCompatActivity {
                             Toast.makeText(this, "You are banned from this community", Toast.LENGTH_LONG).show();
                             finish();
                             return;
+                        }
+
+                        // Auto-reset unread count if we are in the community
+                        Map<String, Long> unreadCounts = currentCommunity.getUnreadCounts();
+                        if (unreadCounts != null && unreadCounts.containsKey(currentUserId)) {
+                            if (unreadCounts.get(currentUserId) > 0) {
+                                resetUnreadCount();
+                            }
                         }
                         
                         updateUIBasedOnRole();
@@ -260,12 +273,23 @@ public class CommunityDetailActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        ChatState.setActiveChatId(communityId);
         resetUnreadCount();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ChatState.setActiveChatId(null);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (communityListener != null) {
+            communityListener.remove();
+        }
+        ChatState.setActiveChatId(null);
         adapter.release();
     }
 

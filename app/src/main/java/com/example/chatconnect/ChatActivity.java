@@ -1,5 +1,7 @@
 package com.example.chatconnect;
 
+import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -17,11 +19,15 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatconnect.services.AiService;
+import com.example.chatconnect.services.MyFirebaseMessagingService;
+import com.example.chatconnect.utils.ChatState;
+import com.example.chatconnect.utils.FcmSender;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -55,6 +61,7 @@ public class ChatActivity extends AppCompatActivity {
     private List<String> participants = new ArrayList<>();
     private FirebaseFirestore db;
     private AiService aiService;
+    private ListenerRegistration chatListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +76,9 @@ public class ChatActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        // Set active chat for notification suppression
+        ChatState.setActiveChatId(chatId);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -95,8 +105,7 @@ public class ChatActivity extends AppCompatActivity {
         }
 
         checkChatStatus();
-        resetUnreadCount();
-
+        
         messagesRecyclerView = findViewById(R.id.messages_recycler_view);
         messagesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -164,7 +173,7 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void checkChatStatus() {
-        db.collection("chats").document(chatId).addSnapshotListener((documentSnapshot, e) -> {
+        chatListener = db.collection("chats").document(chatId).addSnapshotListener((documentSnapshot, e) -> {
             if (e != null) return;
             if (documentSnapshot != null && documentSnapshot.exists()) {
                 isGroup = Boolean.TRUE.equals(documentSnapshot.getBoolean("isGroup"));
@@ -174,6 +183,15 @@ public class ChatActivity extends AppCompatActivity {
                 String updatedName = documentSnapshot.getString("name");
                 if (isGroup && updatedName != null && getSupportActionBar() != null) {
                     getSupportActionBar().setTitle(updatedName);
+                }
+
+                // Auto-reset unread count if it's > 0 while we are in the chat
+                Map<String, Long> unreadCounts = (Map<String, Long>) documentSnapshot.get("unreadCounts");
+                if (unreadCounts != null && unreadCounts.containsKey(currentUserId)) {
+                    long count = unreadCounts.get(currentUserId);
+                    if (count > 0) {
+                        resetUnreadCount();
+                    }
                 }
             }
         });
@@ -234,6 +252,14 @@ public class ChatActivity extends AppCompatActivity {
             for (String participantId : participants) {
                 if (!participantId.equals(currentUserId)) {
                     updateData.put("unreadCounts." + participantId, FieldValue.increment(1));
+
+                    // Send Push Notification
+                    db.collection("users").document(participantId).get().addOnSuccessListener(userDoc -> {
+                        String token = userDoc.getString("fcmToken");
+                        if (token != null) {
+                            FcmSender.sendNotification(ChatActivity.this, token, currentUserName, messageText, chatId, chatName);
+                        }
+                    });
                 }
             }
         }
@@ -296,7 +322,30 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        ChatState.setActiveChatId(chatId);
         resetUnreadCount();
+
+        // Clear notification for this chat
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        nm.cancel(chatId.hashCode());
+
+        // Clear tracked messages in the service
+        MyFirebaseMessagingService.clearMessages(chatId);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ChatState.setActiveChatId(null);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (chatListener != null) {
+            chatListener.remove();
+        }
+        ChatState.setActiveChatId(null);
     }
 
     @Override

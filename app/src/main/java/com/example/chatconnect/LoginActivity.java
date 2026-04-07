@@ -1,11 +1,9 @@
 package com.example.chatconnect;
 
-import static androidx.core.content.ContextCompat.startActivity;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.View;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -19,6 +17,8 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -29,19 +29,16 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 1. Initialize Firebase Auth FIRST
         mAuth = FirebaseAuth.getInstance();
 
-        // 2. Check for a current user immediately after initialization
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
-            // If user is already logged in, go directly to MainActivity
+            updateToken();
             startActivity(new Intent(LoginActivity.this, MainActivity.class));
-            finish(); // Call finish() to prevent user from coming back to LoginActivity
-            return; // Return early to avoid setting up the login view
+            finish();
+            return;
         }
 
-        // If no user is logged in, proceed to set up the login screen
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_login);
 
@@ -73,16 +70,30 @@ public class LoginActivity extends AppCompatActivity {
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        // Sign in success, navigate to MainActivity
+                        updateToken();
                         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                        // Clear back stack so user can't go back to login
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(intent);
                         finish();
                     } else {
-                        // If sign in fails, display a message to the user.
                         Toast.makeText(LoginActivity.this, "Authentication failed. " + task.getException().getMessage(),
                                 Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    private void updateToken() {
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Log.w("LoginActivity", "Fetching FCM registration token failed", task.getException());
+                        return;
+                    }
+                    String token = task.getResult();
+                    String userId = FirebaseAuth.getInstance().getUid();
+                    if (userId != null) {
+                        FirebaseFirestore.getInstance().collection("users").document(userId)
+                                .update("fcmToken", token);
                     }
                 });
     }

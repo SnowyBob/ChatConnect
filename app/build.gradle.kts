@@ -30,6 +30,19 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt"
+            )
+        }
+    }
+
 }
 
 dependencies {
@@ -38,7 +51,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
-    
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
+
     // Firebase using BOM
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)

@@ -22,8 +22,8 @@ import com.example.chatconnect.Message;
 import com.example.chatconnect.MessagesAdapter;
 import com.example.chatconnect.R;
 import com.example.chatconnect.services.AiService;
+import com.example.chatconnect.utils.ChatState;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -70,6 +70,9 @@ public class ThreadActivity extends AppCompatActivity {
         parentAuthor = getIntent().getStringExtra("author_name");
         parentContent = getIntent().getStringExtra("post_content");
         currentUserId = FirebaseAuth.getInstance().getUid();
+
+        // Track active thread for notification suppression
+        ChatState.setActiveChatId(postId);
 
         db = FirebaseFirestore.getInstance();
         aiService = new AiService();
@@ -272,6 +275,24 @@ public class ThreadActivity extends AppCompatActivity {
                             .update("replyCount", com.google.firebase.firestore.FieldValue.increment(1));
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to send", Toast.LENGTH_SHORT).show());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ChatState.setActiveChatId(postId);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ChatState.setActiveChatId(null);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        ChatState.setActiveChatId(null);
     }
 
     @Override
