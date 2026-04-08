@@ -20,7 +20,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
+import android.widget.SeekBar;
+import android.widget.LinearLayout;
+import com.example.chatconnect.utils.VoicePlayerManager;
 public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.MessageViewHolder> {
 
     private static final int VIEW_TYPE_SENT = 1;
@@ -88,6 +90,83 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = messages.get(position);
         holder.bind(message, isGroup && !message.getSenderId().equals(currentUserId));
+
+        // --- Voice Message Handling ---
+        LinearLayout voiceBubbleLayout = holder.itemView.findViewById(R.id.voice_bubble_layout);
+        ImageView btnPlayPause = holder.itemView.findViewById(R.id.btn_play_pause);
+        SeekBar voiceSeekbar = holder.itemView.findViewById(R.id.voice_seekbar);
+        TextView voiceDuration = holder.itemView.findViewById(R.id.voice_duration);
+        TextView messageText = holder.itemView.findViewById(R.id.message_text);
+
+        if (message.isVoiceMessage() && message.getAudioUrl() != null) {
+            if (voiceBubbleLayout != null) voiceBubbleLayout.setVisibility(View.VISIBLE);
+            if (messageText != null) messageText.setVisibility(View.GONE);
+
+            long durMs = message.getAudioDuration();
+            String durText = String.format("%d:%02d", (durMs / 1000) / 60, (durMs / 1000) % 60);
+            if (voiceDuration != null) voiceDuration.setText(durText);
+
+            VoicePlayerManager playerManager = VoicePlayerManager.getInstance();
+
+            if (playerManager.isPlaying(message.getMessageId())) {
+                btnPlayPause.setImageResource(android.R.drawable.ic_media_pause);
+            } else {
+                btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
+            }
+
+            btnPlayPause.setOnClickListener(v -> {
+                boolean wasPlaying = playerManager.isPlaying(message.getMessageId());
+
+                playerManager.play(message.getMessageId(), message.getAudioUrl(),
+                        v.getContext().getCacheDir(),
+                        new VoicePlayerManager.PlaybackListener() {
+                            @Override
+                            public void onProgress(int currentMs, int totalMs) {
+                                if (totalMs > 0) {
+                                    voiceSeekbar.setMax(totalMs);
+                                    voiceSeekbar.setProgress(currentMs);
+                                    String elapsed = String.format("%d:%02d",
+                                            (currentMs / 1000) / 60, (currentMs / 1000) % 60);
+                                    voiceDuration.setText(elapsed + " / " + durText);
+                                }
+                                // Keep icon in sync during playback
+                                btnPlayPause.setImageResource(android.R.drawable.ic_media_pause);
+                            }
+
+                            @Override
+                            public void onComplete() {
+                                btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
+                                voiceSeekbar.setProgress(0);
+                                voiceDuration.setText(durText);
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
+                            }
+                        });
+
+                // Toggle icon immediately based on previous state
+                if (wasPlaying) {
+                    btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
+                } else {
+                    btnPlayPause.setImageResource(android.R.drawable.ic_media_pause);
+                }
+            });
+
+            voiceSeekbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser) playerManager.seekTo(progress);
+                }
+                @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+                @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            });
+
+        } else {
+            if (voiceBubbleLayout != null) voiceBubbleLayout.setVisibility(View.GONE);
+            if (messageText != null) messageText.setVisibility(View.VISIBLE);
+        }
     }
 
     @Override

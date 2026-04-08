@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="8dp">
-
+    <include layout="@layout/layout_voice_bubble" />
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/message_profile_image"
         android:layout_width="32dp"
@@ -66,6 +66,8 @@
             android:layout_height="wrap_content"
             android:textColor="@android:color/white"
             android:textSize="16sp" />
+
+        <include layout="@layout/layout_voice_bubble" />
 
         <TextView
             android:id="@+id/time_text"

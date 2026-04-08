@@ -44,6 +44,44 @@ public class SupabaseManager {
         this.client = new OkHttpClient();
     }
 
+    public void uploadVoice(byte[] audioData, String fileName, UploadCallback callback) {
+        executor.execute(() -> {
+            try {
+                String storagePath = "voice_messages/" + fileName;
+                String url = SUPABASE_URL + "/storage/v1/object/" + BUCKET_NAME + "/" + storagePath;
+
+                RequestBody requestBody = RequestBody.create(audioData, MediaType.parse("audio/mp4"));
+
+                Request request = new Request.Builder()
+                        .url(url)
+                        .addHeader("apikey", SUPABASE_KEY)
+                        .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                        .post(requestBody)
+                        .build();
+
+                client.newCall(request).enqueue(new Callback() {
+                    @Override
+                    public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                        mainHandler.post(() -> callback.onError("Network failure: " + e.getMessage()));
+                    }
+
+                    @Override
+                    public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                        if (response.isSuccessful()) {
+                            String publicUrl = SUPABASE_URL + "/storage/v1/object/public/" + BUCKET_NAME + "/" + storagePath;
+                            mainHandler.post(() -> callback.onSuccess(publicUrl));
+                        } else {
+                            String body = response.body() != null ? response.body().string() : "";
+                            mainHandler.post(() -> callback.onError("Upload failed: " + body));
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
     public void uploadImage(Context context, Uri imageUri, String fileName, UploadCallback callback) {
         executor.execute(() -> {
             try {

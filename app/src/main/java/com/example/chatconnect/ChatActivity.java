@@ -18,10 +18,12 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.chatconnect.utils.SupabaseManager;
 import com.example.chatconnect.services.AiService;
 import com.example.chatconnect.services.MyFirebaseMessagingService;
 import com.example.chatconnect.utils.ChatState;
 import com.example.chatconnect.utils.FcmSender;
+import com.example.chatconnect.utils.VoicePlayerManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
@@ -36,8 +38,33 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.example.chatconnect.utils.VoiceRecorder;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.MotionEvent;
+import android.widget.RelativeLayout;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import java.io.File;
+import java.util.UUID;
 
 public class ChatActivity extends AppCompatActivity {
+
+    // Voice recording
+    private ImageView btnVoiceRecord;
+    private RelativeLayout recordingLayout;
+    private TextView recordingTimer;
+    private VoiceRecorder voiceRecorder;
+    private Handler recordingTimerHandler = new Handler(Looper.getMainLooper());
+    private long recordingStartTime;
+    private float startX;
+    private boolean isRecording = false;
+    private static final float CANCEL_THRESHOLD = 200f; // px to slide left to cancel
 
     private RecyclerView messagesRecyclerView;
     private MessagesAdapter adapter;
@@ -45,7 +72,8 @@ public class ChatActivity extends AppCompatActivity {
     private EditText messageEditText;
     private ImageView btnAiReply;
     private ProgressBar aiProgressBar;
-    
+    private SupabaseManager supabaseManager;
+
     // Reply UI
     private RelativeLayout replyPreviewLayout;
     private TextView replyPreviewName, replyPreviewText;
@@ -94,6 +122,7 @@ public class ChatActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+        supabaseManager = new SupabaseManager();
 
         db = FirebaseFirestore.getInstance();
         aiService = new AiService();
@@ -137,7 +166,192 @@ public class ChatActivity extends AppCompatActivity {
         sendButton.setOnClickListener(v -> sendMessage());
         btnAiReply.setOnClickListener(v -> generateAiReply());
 
+        // Voice recording setup
+        voiceRecorder = new VoiceRecorder();
+        btnVoiceRecord = findViewById(R.id.btn_voice_record);
+        recordingLayout = findViewById(R.id.recording_layout);
+        recordingTimer = findViewById(R.id.recording_timer);
+
+        btnVoiceRecord.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    startX = event.getRawX();
+                    startVoiceRecording();
+                    return true;
+
+                case MotionEvent.ACTION_MOVE:
+                    float deltaX = startX - event.getRawX();
+                    if (deltaX > CANCEL_THRESHOLD) {
+                        cancelVoiceRecording();
+                    }
+                    return true;
+
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    if (isRecording) {
+                        stopVoiceRecordingAndSend();
+                    }
+                    return true;
+            }
+            return false;
+        });
+
         loadMessages();
+    }
+
+    // ==================== VOICE RECORDING ====================
+
+    private void startVoiceRecording() {
+        // Check permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 101);
+            return;
+        }
+
+        try {
+            File audioFile = new File(getCacheDir(), "voice_" + System.currentTimeMillis() + ".m4a");
+            voiceRecorder.startRecording(audioFile);
+            isRecording = true;
+
+            // Show recording UI
+            recordingLayout.setVisibility(View.VISIBLE);
+            recordingStartTime = System.currentTimeMillis();
+            updateRecordingTimer();
+
+            // Pulse animation on red dot
+            View dot = findViewById(R.id.recording_dot);
+            if (dot != null) {
+                dot.animate().alpha(0.3f).setDuration(500)
+                        .withEndAction(() -> dot.animate().alpha(1f).setDuration(500).start())
+                        .start();
+            }
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to start recording", Toast.LENGTH_SHORT).show();
+            isRecording = false;
+        }
+    }
+
+    private void stopVoiceRecordingAndSend() {
+        isRecording = false;
+        recordingTimerHandler.removeCallbacksAndMessages(null);
+        recordingLayout.setVisibility(View.GONE);
+
+        VoiceRecorder.RecordingResult result = voiceRecorder.stopRecording();
+        if (result == null || result.durationMs < 500) {
+            // Too short, ignore
+            Toast.makeText(this, "Recording too short", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        uploadAndSendVoiceMessage(result);
+    }
+
+    private void cancelVoiceRecording() {
+        isRecording = false;
+        recordingTimerHandler.removeCallbacksAndMessages(null);
+        recordingLayout.setVisibility(View.GONE);
+        voiceRecorder.cancelRecording();
+        Toast.makeText(this, "Recording cancelled", Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateRecordingTimer() {
+        recordingTimerHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!isRecording) return;
+                long elapsed = System.currentTimeMillis() - recordingStartTime;
+                int secs = (int) (elapsed / 1000);
+                int mins = secs / 60;
+                secs = secs % 60;
+                recordingTimer.setText(String.format("%d:%02d", mins, secs));
+                recordingTimerHandler.postDelayed(this, 500);
+            }
+        }, 500);
+    }
+
+    private void uploadAndSendVoiceMessage(VoiceRecorder.RecordingResult result) {
+        Toast.makeText(this, "Sending voice message...", Toast.LENGTH_SHORT).show();
+
+        File file = new File(result.filePath);
+        try {
+            byte[] audioData = new byte[(int) file.length()];
+            java.io.FileInputStream fis = new java.io.FileInputStream(file);
+            fis.read(audioData);
+            fis.close();
+
+            String fileName = chatId + "_" + System.currentTimeMillis() + ".m4a";
+
+            supabaseManager.uploadVoice(audioData, fileName, new SupabaseManager.UploadCallback() {
+                @Override
+                public void onSuccess(String audioUrl) {
+                    sendVoiceMessageToFirestore(audioUrl, result.durationMs);
+                    file.delete();
+                }
+
+                @Override
+                public void onError(String message) {
+                    Toast.makeText(ChatActivity.this, "Failed to send: " + message, Toast.LENGTH_SHORT).show();
+                    file.delete();
+                }
+            });
+        } catch (Exception e) {
+            Toast.makeText(this, "Error reading audio file", Toast.LENGTH_SHORT).show();
+            file.delete();
+        }
+    }
+
+    private void sendVoiceMessageToFirestore(String audioUrl, long durationMs) {
+        // Update chat metadata (same as text messages)
+        Map<String, Object> updateData = new HashMap<>();
+        updateData.put("lastMessage", "\uD83C\uDF99 Voice message");
+        updateData.put("timestamp", System.currentTimeMillis());
+
+        if (participants != null) {
+            for (String participantId : participants) {
+                if (!participantId.equals(currentUserId)) {
+                    updateData.put("unreadCounts." + participantId, FieldValue.increment(1));
+
+                    // Push notification
+                    db.collection("users").document(participantId).get().addOnSuccessListener(userDoc -> {
+                        String token = userDoc.getString("fcmToken");
+                        Boolean notificationsEnabled = userDoc.getBoolean("notificationsEnabled");
+                        boolean enabled = notificationsEnabled == null || notificationsEnabled;
+                        if (token != null && enabled) {
+                            FcmSender.sendNotification(ChatActivity.this, token, currentUserName,
+                                    "🎙 Voice message", chatId, chatName);
+                        }
+                    });
+                }
+            }
+        }
+
+        db.collection("chats").document(chatId).update(updateData);
+
+        // Create message document
+        CollectionReference messagesRef = db.collection("chats").document(chatId).collection("messages");
+
+        Map<String, Object> message = new HashMap<>();
+        message.put("senderId", currentUserId);
+        message.put("senderName", currentUserName != null ? currentUserName : "Unknown");
+        message.put("senderProfileImageUrl", currentUserProfileImageUrl);
+        message.put("text", "🎙 Voice message");
+        message.put("timestamp", new Date());
+        message.put("voiceMessage", true);
+        message.put("audioUrl", audioUrl);
+        message.put("audioDuration", durationMs);
+
+        // Reply support
+        if (replyTargetMessage != null) {
+            message.put("replyToMessageId", replyTargetMessage.getMessageId());
+            message.put("replyToText", replyTargetMessage.getText());
+            message.put("replyToSenderName", replyTargetMessage.getSenderName());
+        }
+
+        messagesRef.add(message).addOnSuccessListener(documentReference -> {
+            cancelReply();
+        });
     }
 
     private void navigateToMessage(String messageId) {
@@ -349,6 +563,10 @@ public class ChatActivity extends AppCompatActivity {
             chatListener.remove();
         }
         ChatState.setActiveChatId(null);
+        VoicePlayerManager.getInstance().stop(); // Stop playback when leaving
+        if (voiceRecorder != null && voiceRecorder.isRecording()) {
+            voiceRecorder.cancelRecording();
+        }
     }
 
     @Override

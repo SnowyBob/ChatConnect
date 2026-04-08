@@ -86,6 +86,8 @@
             app:tint="@android:color/darker_gray" />
     </RelativeLayout>
 
+    <include layout="@layout/layout_recording_indicator" />
+
     <RelativeLayout
         android:id="@+id/message_input_layout"
         android:layout_width="match_parent"
@@ -97,7 +99,7 @@
             android:id="@+id/message_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_toStartOf="@+id/btn_ai_reply"
+            android:layout_toStartOf="@+id/btn_voice_record"
             android:background="@drawable/edit_text_background"
             android:hint="Type a message..."
             android:inputType="textShortMessage"
@@ -115,6 +117,17 @@
             android:padding="8dp"
             android:src="@android:drawable/ic_menu_help"
             app:tint="#8E24AA" />
+
+        <ImageView
+            android:id="@+id/btn_voice_record"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_toStartOf="@+id/btn_ai_reply"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="4dp"
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:contentDescription="Record voice"
+            android:background="?attr/selectableItemBackgroundBorderless" />
 
         <ImageView
             android:id="@+id/send_button"
