@@ -256,7 +256,10 @@ public class ChatActivity extends AppCompatActivity {
                     // Send Push Notification
                     db.collection("users").document(participantId).get().addOnSuccessListener(userDoc -> {
                         String token = userDoc.getString("fcmToken");
-                        if (token != null) {
+                        Boolean notificationsEnabled = userDoc.getBoolean("notificationsEnabled");
+                        boolean enabled = notificationsEnabled == null || notificationsEnabled; // default true
+
+                        if (token != null && enabled) {
                             FcmSender.sendNotification(ChatActivity.this, token, currentUserName, messageText, chatId, chatName);
                         }
                     });

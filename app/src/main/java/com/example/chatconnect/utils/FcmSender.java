@@ -19,7 +19,6 @@ public class FcmSender {
     private static final String TAG = "FcmSender";
     private static final String FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 
-    // IMPORTANT: Replace with your actual Firebase project ID
     private static final String PROJECT_ID = "chatconnect-5ba61";
 
     private static String getAccessToken(Context context) {

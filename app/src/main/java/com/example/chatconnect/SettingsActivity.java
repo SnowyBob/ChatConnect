@@ -28,10 +28,25 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         SwitchMaterial notificationsSwitch = findViewById(R.id.switch_notifications);
-        notificationsSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            String status = isChecked ? "enabled" : "disabled";
-            Toast.makeText(SettingsActivity.this, "Notifications " + status, Toast.LENGTH_SHORT).show();
-        });
+        String userId = FirebaseAuth.getInstance().getUid();
+
+        if (userId != null) {
+            com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("users").document(userId).get()
+                    .addOnSuccessListener(doc -> {
+                        Boolean enabled = doc.getBoolean("notificationsEnabled");
+                        notificationsSwitch.setChecked(enabled == null || enabled);
+
+                        // Set listener AFTER loading so it doesn't trigger on load
+                        notificationsSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                            String status = isChecked ? "enabled" : "disabled";
+                            Toast.makeText(SettingsActivity.this, "Notifications " + status, Toast.LENGTH_SHORT).show();
+                            com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                    .collection("users").document(userId)
+                                    .update("notificationsEnabled", isChecked);
+                        });
+                    });
+        }
 
         TextView logoutButton = findViewById(R.id.setting_logout);
         logoutButton.setOnClickListener(v -> showLogoutConfirmationDialog());
