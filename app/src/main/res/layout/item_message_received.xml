@@ -78,7 +78,15 @@
             android:textSize="16sp" />
 
         <include layout="@layout/layout_voice_bubble" />
-
+        <TextView
+            android:id="@+id/edited_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="edited"
+            android:textColor="#AAAAAA"
+            android:textSize="10sp"
+            android:textStyle="italic"
+            android:visibility="gone" />
         <TextView
             android:id="@+id/time_text"
             android:layout_width="wrap_content"

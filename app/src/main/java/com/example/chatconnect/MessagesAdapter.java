@@ -38,6 +38,16 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
     // Cache for user profile URLs to avoid repeated Firestore queries
     private final Map<String, String> profileCache = new HashMap<>();
 
+    private OnMessageLongClickListener longClickListener;
+
+    public interface OnMessageLongClickListener {
+        void onMessageLongClick(Message message, View anchorView);
+    }
+
+    public void setOnMessageLongClickListener(OnMessageLongClickListener listener) {
+        this.longClickListener = listener;
+    }
+
     public interface OnReplyClickListener {
         void onReplyClick(Message message);
     }
@@ -166,6 +176,33 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         } else {
             if (voiceBubbleLayout != null) voiceBubbleLayout.setVisibility(View.GONE);
             if (messageText != null) messageText.setVisibility(View.VISIBLE);
+        }
+        // --- Long press for edit/delete ---
+        holder.messageBubble.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onMessageLongClick(message, v);
+            }
+            return true;
+        });
+
+        // --- Show deleted/edited state ---
+        TextView messageTextView = holder.itemView.findViewById(R.id.message_text);
+        TextView editedLabel = holder.itemView.findViewById(R.id.edited_label);
+
+        if (message.isDeleted()) {
+            if (messageTextView != null) {
+                messageTextView.setText("🚫 This message was deleted");
+                messageTextView.setAlpha(0.5f);
+            }
+            if (voiceBubbleLayout != null) voiceBubbleLayout.setVisibility(View.GONE);
+            if (holder.btnReply != null) holder.btnReply.setVisibility(View.GONE);
+            if (editedLabel != null) editedLabel.setVisibility(View.GONE);
+        } else {
+            if (messageTextView != null) messageTextView.setAlpha(1f);
+            if (holder.btnReply != null) holder.btnReply.setVisibility(View.VISIBLE);
+            if (editedLabel != null) {
+                editedLabel.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
+            }
         }
     }
 

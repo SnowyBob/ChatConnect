@@ -3,6 +3,7 @@ package com.example.chatconnect;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -52,6 +53,8 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import java.io.File;
 import java.util.UUID;
+import androidx.appcompat.app.AlertDialog;
+import android.widget.PopupMenu;
 
 public class ChatActivity extends AppCompatActivity {
 
@@ -147,7 +150,9 @@ public class ChatActivity extends AppCompatActivity {
         });
 
         adapter.setOnMessageNavigateListener(this::navigateToMessage);
-
+        adapter.setOnMessageLongClickListener((message, anchorView) -> {
+            showMessageOptions(message, anchorView);
+        });
         messagesRecyclerView.setAdapter(adapter);
 
         messageEditText = findViewById(R.id.message_input);
@@ -197,6 +202,97 @@ public class ChatActivity extends AppCompatActivity {
         });
 
         loadMessages();
+    }
+
+    private void showMessageOptions(Message message, View anchorView) {
+        // Only allow edit/delete on own messages
+        if (!message.getSenderId().equals(currentUserId)) return;
+        if (message.isDeleted()) return;
+
+        PopupMenu popup = new PopupMenu(this, anchorView);
+
+        if (!message.isVoiceMessage()) {
+            popup.getMenu().add(0, 1, 0, "Edit");
+        }
+        popup.getMenu().add(0, 2, 1, "Delete");
+
+        popup.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 1:
+                    showEditDialog(message);
+                    return true;
+                case 2:
+                    showDeleteConfirmation(message);
+                    return true;
+            }
+            return false;
+        });
+
+        popup.show();
+    }
+
+    private void showEditDialog(Message message) {
+        EditText editText = new EditText(this);
+        editText.setText(message.getText());
+        editText.setSelection(message.getText().length());
+        editText.setTextColor(Color.BLACK);
+        editText.setHintTextColor(Color.GRAY);
+        editText.setPadding(40, 20, 40, 20);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Edit Message")
+                .setView(editText)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String newText = editText.getText().toString().trim();
+                    if (!newText.isEmpty() && !newText.equals(message.getText())) {
+                        editMessage(message, newText);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showDeleteConfirmation(Message message) {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Message")
+                .setMessage("Delete this message? It will be removed for everyone.")
+                .setPositiveButton("Delete", (dialog, which) -> deleteMessage(message))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void editMessage(Message message, String newText) {
+        db.collection("chats").document(chatId)
+                .collection("messages").document(message.getMessageId())
+                .update(
+                        "text", newText,
+                        "edited", true
+                )
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Failed to edit message", Toast.LENGTH_SHORT).show());
+
+        // Update lastMessage if this was the most recent message
+        if (!messageList.isEmpty() && messageList.get(messageList.size() - 1).getMessageId().equals(message.getMessageId())) {
+            db.collection("chats").document(chatId).update("lastMessage", newText);
+        }
+    }
+
+    private void deleteMessage(Message message) {
+        db.collection("chats").document(chatId)
+                .collection("messages").document(message.getMessageId())
+                .update(
+                        "text", "🚫 This message was deleted",
+                        "deleted", true,
+                        "audioUrl", null,
+                        "voiceMessage", false
+                )
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Failed to delete message", Toast.LENGTH_SHORT).show());
+
+        // Update lastMessage if this was the most recent message
+        if (!messageList.isEmpty() && messageList.get(messageList.size() - 1).getMessageId().equals(message.getMessageId())) {
+            db.collection("chats").document(chatId).update("lastMessage", "🚫 This message was deleted");
+        }
     }
 
     // ==================== VOICE RECORDING ====================

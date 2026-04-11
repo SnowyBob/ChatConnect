@@ -9,6 +9,15 @@ public class Message {
     private String senderName;
     private String senderProfileImageUrl;
     private Date timestamp;
+
+    private boolean edited;
+    private boolean deleted;
+
+    public boolean isEdited() { return edited; }
+    public void setEdited(boolean edited) { this.edited = edited; }
+
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
     
     // Reply fields
     private String replyToMessageId;
