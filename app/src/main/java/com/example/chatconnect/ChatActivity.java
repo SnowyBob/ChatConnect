@@ -205,7 +205,7 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void showMessageOptions(Message message, View anchorView) {
-        // Only allow edit/delete on own messages
+        // Only allow edit / delete on own messages
         if (!message.getSenderId().equals(currentUserId)) return;
         if (message.isDeleted()) return;
 
