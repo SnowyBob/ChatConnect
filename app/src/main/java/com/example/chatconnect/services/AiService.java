@@ -22,7 +22,7 @@ import java.util.concurrent.Executors;
 public class AiService {
 
     private static final String TAG = "AiService";
-    private static final String GEMINI_API_KEY = "AIzaSyDa4YLc2NYHVkFEWjkijErx_ouGji3Sn3w";
+    private static final String GEMINI_API_KEY = "AIzaSyCoK6Vindic1fED5OEToyJrpCzXCkOJFpI";
 
     private final GenerativeModelFutures model;
     private final Executor executor = Executors.newSingleThreadExecutor();
@@ -143,7 +143,96 @@ public class AiService {
             callback.onError(e);
         }
     }
+    public void generateSearchTerms(String userPrompt, AiCallback callback) {
+        String prompt = "Generate 15-20 search terms for finding messages related to this query:\n" +
+                "\"" + userPrompt + "\"\n\n" +
+                "Include:\n" +
+                "- Exact words from the query\n" +
+                "- Synonyms and related words\n" +
+                "- Common abbreviations and slang\n" +
+                "- Hebrew translations if the query is in English, and English translations if in Hebrew\n" +
+                "- Informal variations (e.g. birthday → bday, b-day)\n\n" +
+                "Output ONLY a JSON array of strings, nothing else.\n" +
+                "Example: [\"birthday\", \"bday\", \"party\", \"יום הולדת\", \"מסיבה\"]";
 
+        Content content = new Content.Builder()
+                .addText(prompt)
+                .build();
+
+        try {
+            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
+            Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
+                @Override
+                public void onSuccess(GenerateContentResponse result) {
+                    String text = result.getText();
+                    if (text == null || text.trim().isEmpty()) {
+                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty terms.")));
+                    } else {
+                        String cleaned = text.replaceAll("```json", "").replaceAll("```", "").trim();
+                        mainHandler.post(() -> callback.onGenerated(cleaned));
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    Log.e(TAG, "Search term generation failed", t);
+                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
+                }
+            }, executor);
+        } catch (Exception e) {
+            callback.onError(e);
+        }
+    }
+
+    public void rankSearchResults(String matchedMessages, String userPrompt, AiCallback callback) {
+        String prompt = "You are ranking search results by relevance.\n\n" +
+                "Search query: \"" + userPrompt + "\"\n\n" +
+                "Here are the matched messages:\n" +
+                matchedMessages + "\n\n" +
+                "Instructions:\n" +
+                "- Rank them from most to least relevant to the query\n" +
+                "- Remove any that are clearly not relevant (false positives)\n" +
+                "- Return the top 10 most relevant\n" +
+                "- Output ONLY a JSON array:\n" +
+                "[\n" +
+                "  {\n" +
+                "    \"messageId\": \"id1\",\n" +
+                "    \"chatId\": \"chatId1\",\n" +
+                "    \"chatName\": \"Chat A\",\n" +
+                "    \"senderName\": \"User1\",\n" +
+                "    \"messageText\": \"...\"\n" +
+                "  }\n" +
+                "]\n" +
+                "- Do NOT include explanations or extra text";
+
+        Content content = new Content.Builder()
+                .addText(prompt)
+                .build();
+
+        try {
+            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
+            Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
+                @Override
+                public void onSuccess(GenerateContentResponse result) {
+                    String text = result.getText();
+                    if (text == null || text.trim().isEmpty()) {
+                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty ranking.")));
+                    } else {
+                        String cleaned = text.replaceAll("```json", "").replaceAll("```", "").trim();
+                        mainHandler.post(() -> callback.onGenerated(cleaned));
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    Log.e(TAG, "AI Ranking failed", t);
+                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
+                }
+            }, executor);
+        } catch (Exception e) {
+            callback.onError(e);
+        }
+    }
     public void searchMessages(String formattedMessages, String userPrompt, AiCallback callback) {
         String prompt = "You are searching a chat conversation for relevant messages.\n\n" +
                 "Here are the messages:\n" +
