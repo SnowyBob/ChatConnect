@@ -96,8 +96,32 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(MainActivity.this, SearchActivity.class));
         });
 
+        adapter.setOnChatLongClickListener(chat -> {
+            if (!chat.isGroup()) {
+                showDeleteChatDialog(chat);
+            }
+        });
+
         askNotificationPermission();
         loadChats();
+    }
+
+    private void showDeleteChatDialog(Chat chat) {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Delete Chat")
+                .setMessage("Delete chat with " + chat.getName() + "? Messages will be cleared on your side only.")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    db.collection("chats").document(chat.getId())
+                            .update("deletedAt." + currentUserId, System.currentTimeMillis())
+                            .addOnSuccessListener(aVoid -> {
+                                Toast.makeText(this, "Chat deleted", Toast.LENGTH_SHORT).show();
+                            })
+                            .addOnFailureListener(e -> {
+                                Toast.makeText(this, "Failed to delete chat", Toast.LENGTH_SHORT).show();
+                            });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void askNotificationPermission() {
@@ -122,6 +146,15 @@ public class MainActivity extends AppCompatActivity {
                     if (snapshots != null) {
                         chatsMap.clear();
                         for (QueryDocumentSnapshot document : snapshots) {
+                            // Check if user "deleted" this chat
+                            Map<String, Long> deletedAt = (Map<String, Long>) document.get("deletedAt");
+                            Long userDeletedAt = (deletedAt != null) ? deletedAt.get(currentUserId) : null;
+                            Long lastTimestamp = document.getLong("timestamp");
+
+                            // If deleted and no new messages since, skip this chat
+                            if (userDeletedAt != null && (lastTimestamp == null || lastTimestamp <= userDeletedAt)) {
+                                continue;
+                            }
                             String chatId = document.getId();
                             String lastMessage = document.getString("lastMessage");
                             if (lastMessage == null) lastMessage = "";

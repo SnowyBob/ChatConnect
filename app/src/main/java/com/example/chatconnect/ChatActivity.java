@@ -69,6 +69,8 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isRecording = false;
     private static final float CANCEL_THRESHOLD = 200f; // px to slide left to cancel
 
+    private long myDeletedAt = 0;
+
     private RecyclerView messagesRecyclerView;
     private MessagesAdapter adapter;
     private List<Message> messageList = new ArrayList<>();
@@ -489,10 +491,16 @@ public class ChatActivity extends AppCompatActivity {
                 isGroup = Boolean.TRUE.equals(documentSnapshot.getBoolean("isGroup"));
                 participants = (List<String>) documentSnapshot.get("participants");
                 adapter.setGroup(isGroup);
-                
+
                 String updatedName = documentSnapshot.getString("name");
                 if (isGroup && updatedName != null && getSupportActionBar() != null) {
                     getSupportActionBar().setTitle(updatedName);
+                }
+
+                // Get deletedAt for current user
+                Map<String, Long> deletedAtMap = (Map<String, Long>) documentSnapshot.get("deletedAt");
+                if (deletedAtMap != null && deletedAtMap.containsKey(currentUserId)) {
+                    myDeletedAt = deletedAtMap.get(currentUserId);
                 }
 
                 // Auto-reset unread count if it's > 0 while we are in the chat
@@ -606,19 +614,23 @@ public class ChatActivity extends AppCompatActivity {
         db.collection("chats").document(chatId).collection("messages")
                 .orderBy("timestamp", Query.Direction.ASCENDING)
                 .addSnapshotListener((snapshots, e) -> {
-                    if (e != null) {
-                        return;
-                    }
+                    if (e != null) return;
                     if (snapshots != null) {
                         messageList.clear();
                         for (QueryDocumentSnapshot doc : snapshots) {
                             Message message = doc.toObject(Message.class);
                             message.setMessageId(doc.getId());
+
+                            // Skip messages before user's deletedAt
+                            if (myDeletedAt > 0 && message.getTimestamp() != null
+                                    && message.getTimestamp().getTime() <= myDeletedAt) {
+                                continue;
+                            }
+
                             messageList.add(message);
                         }
                         adapter.notifyDataSetChanged();
-                        
-                        // Handle initial navigation to a specific message (from Search or Reply)
+
                         String scrollToId = getIntent().getStringExtra("scroll_to_message_id");
                         if (scrollToId != null) {
                             messagesRecyclerView.post(() -> {

@@ -55,11 +55,29 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ChatViewHold
             intent.putExtra("chat_name", chat.getName());
             v.getContext().startActivity(intent);
         });
+
+        holder.itemView.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onChatLongClick(chatList.get(holder.getAdapterPosition()));
+            }
+            return true;
+        });
     }
 
     @Override
     public int getItemCount() {
         return chatList.size();
+    }
+
+
+    public interface OnChatLongClickListener {
+        void onChatLongClick(Chat chat);
+    }
+
+    private OnChatLongClickListener longClickListener;
+
+    public void setOnChatLongClickListener(OnChatLongClickListener listener) {
+        this.longClickListener = listener;
     }
 
     static class ChatViewHolder extends RecyclerView.ViewHolder {
