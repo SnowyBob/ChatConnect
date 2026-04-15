@@ -51,11 +51,40 @@ public class LoginActivity extends AppCompatActivity {
 
         loginButton.setOnClickListener(v -> loginUser());
 
+        TextView forgotPassword = findViewById(R.id.forgot_password);
+        forgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+    }
+
+    private void showForgotPasswordDialog() {
+        EditText emailInput = new EditText(this);
+        emailInput.setHint("Enter your email");
+        emailInput.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        emailInput.setPadding(40, 20, 40, 20);
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Reset Password")
+                .setMessage("We'll send a password reset link to your email.")
+                .setView(emailInput)
+                .setPositiveButton("Send", (dialog, which) -> {
+                    String email = emailInput.getText().toString().trim();
+                    if (TextUtils.isEmpty(email)) {
+                        Toast.makeText(this, "Please enter your email", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    mAuth.sendPasswordResetEmail(email)
+                            .addOnSuccessListener(aVoid ->
+                                    Toast.makeText(this, "Reset link sent to " + email, Toast.LENGTH_LONG).show())
+                            .addOnFailureListener(e ->
+                                    Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void loginUser() {
