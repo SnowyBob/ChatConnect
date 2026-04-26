@@ -58,7 +58,10 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ChatViewHold
 
         holder.itemView.setOnLongClickListener(v -> {
             if (longClickListener != null) {
-                longClickListener.onChatLongClick(chatList.get(holder.getAdapterPosition()));
+                int pos = holder.getAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION) {
+                    longClickListener.onChatLongClick(chatList.get(pos));
+                }
             }
             return true;
         });

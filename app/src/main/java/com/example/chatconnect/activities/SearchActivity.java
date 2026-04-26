@@ -214,48 +214,80 @@ public class SearchActivity extends AppCompatActivity {
                     for (QueryDocumentSnapshot chatDoc : chatSnapshots) {
                         String chatId = chatDoc.getId();
                         String chatName = chatDoc.getString("name");
-                        if (chatName == null) chatName = "Direct Chat";
 
-                        final String finalChatName = chatName;
+                        if (chatName != null) {
+                            searchChatMessages(chatId, chatName, searchTerms, processedChats, totalChats);
+                        } else {
+                            // DM: resolve other participant's username as chat name
+                            List<String> participants = (List<String>) chatDoc.get("participants");
+                            String otherUserId = null;
+                            if (participants != null) {
+                                for (String uid : participants) {
+                                    if (uid != null && !uid.equals(currentUserId)) {
+                                        otherUserId = uid;
+                                        break;
+                                    }
+                                }
+                            }
 
-                        // NO LIMIT — fetch all messages
-                        db.collection("chats").document(chatId).collection("messages")
-                                .orderBy("timestamp", Query.Direction.ASCENDING)
-                                .get()
-                                .addOnCompleteListener(task -> {
-                                    processedChats[0]++;
-
-                                    if (task.isSuccessful()) {
-                                        List<com.google.firebase.firestore.DocumentSnapshot> docs = new ArrayList<>(task.getResult().getDocuments());
-
-                                        for (int i = 0; i < docs.size(); i++) {
-                                            com.google.firebase.firestore.DocumentSnapshot msgDoc = docs.get(i);
-                                            String text = msgDoc.getString("text");
-                                            if (text == null || text.isEmpty()) continue;
-
-                                            int matchCount = countFuzzyMatches(text, searchTerms);
-                                            if (matchCount > 0) {
-                                                addMatch(msgDoc, chatId, finalChatName, matchCount);
-
-                                                for (int offset = -2; offset <= 2; offset++) {
-                                                    if (offset == 0) continue;
-                                                    int neighborIdx = i + offset;
-                                                    if (neighborIdx >= 0 && neighborIdx < docs.size()) {
-                                                        com.google.firebase.firestore.DocumentSnapshot neighbor = docs.get(neighborIdx);
-                                                        String neighborText = neighbor.getString("text");
-                                                        if (neighborText != null && !neighborText.isEmpty()) {
-                                                            addMatch(neighbor, chatId, finalChatName, 0);
-                                                        }
-                                                    }
+                            if (otherUserId == null) {
+                                searchChatMessages(chatId, "Direct Chat", searchTerms, processedChats, totalChats);
+                            } else {
+                                db.collection("users").document(otherUserId).get()
+                                        .addOnCompleteListener(userTask -> {
+                                            String resolvedName = "Direct Chat";
+                                            if (userTask.isSuccessful() && userTask.getResult() != null) {
+                                                String username = userTask.getResult().getString("username");
+                                                if (username != null && !username.isEmpty()) {
+                                                    resolvedName = username;
                                                 }
                                             }
+                                            searchChatMessages(chatId, resolvedName, searchTerms, processedChats, totalChats);
+                                        });
+                            }
+                        }
+                    }
+                });
+    }
+
+    private void searchChatMessages(String chatId, String chatName, List<String> searchTerms,
+                                    int[] processedChats, int totalChats) {
+        // NO LIMIT — fetch all messages
+        db.collection("chats").document(chatId).collection("messages")
+                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .get()
+                .addOnCompleteListener(task -> {
+                    processedChats[0]++;
+
+                    if (task.isSuccessful()) {
+                        List<com.google.firebase.firestore.DocumentSnapshot> docs = new ArrayList<>(task.getResult().getDocuments());
+
+                        for (int i = 0; i < docs.size(); i++) {
+                            com.google.firebase.firestore.DocumentSnapshot msgDoc = docs.get(i);
+                            String text = msgDoc.getString("text");
+                            if (text == null || text.isEmpty()) continue;
+
+                            int matchCount = countFuzzyMatches(text, searchTerms);
+                            if (matchCount > 0) {
+                                addMatch(msgDoc, chatId, chatName, matchCount);
+
+                                for (int offset = -2; offset <= 2; offset++) {
+                                    if (offset == 0) continue;
+                                    int neighborIdx = i + offset;
+                                    if (neighborIdx >= 0 && neighborIdx < docs.size()) {
+                                        com.google.firebase.firestore.DocumentSnapshot neighbor = docs.get(neighborIdx);
+                                        String neighborText = neighbor.getString("text");
+                                        if (neighborText != null && !neighborText.isEmpty()) {
+                                            addMatch(neighbor, chatId, chatName, 0);
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
 
-                                    if (processedChats[0] == totalChats) {
-                                        onAllMessagesFetched();
-                                    }
-                                });
+                    if (processedChats[0] == totalChats) {
+                        onAllMessagesFetched();
                     }
                 });
     }
