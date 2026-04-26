@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import android.widget.SeekBar;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import com.example.chatconnect.utils.VoicePlayerManager;
 public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.MessageViewHolder> {
 
@@ -104,6 +105,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         // --- Voice Message Handling ---
         LinearLayout voiceBubbleLayout = holder.itemView.findViewById(R.id.voice_bubble_layout);
         ImageView btnPlayPause = holder.itemView.findViewById(R.id.btn_play_pause);
+        ProgressBar voiceBuffering = holder.itemView.findViewById(R.id.voice_buffering);
         SeekBar voiceSeekbar = holder.itemView.findViewById(R.id.voice_seekbar);
         TextView voiceDuration = holder.itemView.findViewById(R.id.voice_duration);
         TextView messageText = holder.itemView.findViewById(R.id.message_text);
@@ -111,6 +113,8 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         if (message.isVoiceMessage() && message.getAudioUrl() != null) {
             if (voiceBubbleLayout != null) voiceBubbleLayout.setVisibility(View.VISIBLE);
             if (messageText != null) messageText.setVisibility(View.GONE);
+            if (voiceBuffering != null) voiceBuffering.setVisibility(View.GONE);
+            btnPlayPause.setVisibility(View.VISIBLE);
 
             long durMs = message.getAudioDuration();
             String durText = String.format("%d:%02d", (durMs / 1000) / 60, (durMs / 1000) % 60);
@@ -131,6 +135,19 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                         v.getContext().getCacheDir(),
                         new VoicePlayerManager.PlaybackListener() {
                             @Override
+                            public void onBufferingStart() {
+                                if (voiceBuffering != null) voiceBuffering.setVisibility(View.VISIBLE);
+                                btnPlayPause.setVisibility(View.INVISIBLE);
+                            }
+
+                            @Override
+                            public void onReady() {
+                                if (voiceBuffering != null) voiceBuffering.setVisibility(View.GONE);
+                                btnPlayPause.setVisibility(View.VISIBLE);
+                                btnPlayPause.setImageResource(android.R.drawable.ic_media_pause);
+                            }
+
+                            @Override
                             public void onProgress(int currentMs, int totalMs) {
                                 if (totalMs > 0) {
                                     voiceSeekbar.setMax(totalMs);
@@ -145,6 +162,8 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
 
                             @Override
                             public void onComplete() {
+                                if (voiceBuffering != null) voiceBuffering.setVisibility(View.GONE);
+                                btnPlayPause.setVisibility(View.VISIBLE);
                                 btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
                                 voiceSeekbar.setProgress(0);
                                 voiceDuration.setText(durText);
@@ -152,15 +171,15 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
 
                             @Override
                             public void onError(String error) {
+                                if (voiceBuffering != null) voiceBuffering.setVisibility(View.GONE);
+                                btnPlayPause.setVisibility(View.VISIBLE);
                                 btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
                             }
                         });
 
-                // Toggle icon immediately based on previous state
+                // Toggle icon immediately based on previous state (pause/resume path; not the buffering path)
                 if (wasPlaying) {
                     btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
-                } else {
-                    btnPlayPause.setImageResource(android.R.drawable.ic_media_pause);
                 }
             });
 

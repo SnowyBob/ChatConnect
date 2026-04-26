@@ -33,6 +33,8 @@ public class VoicePlayerManager {
         void onProgress(int currentMs, int totalMs);
         void onComplete();
         void onError(String error);
+        default void onBufferingStart() {}
+        default void onReady() {}
     }
 
     public void play(String messageId, String audioUrl, File cacheDir, PlaybackListener listener) {
@@ -70,8 +72,10 @@ public class VoicePlayerManager {
                 mediaPlayer.setDataSource(audioUrl);
             }
 
+            if (listener != null) listener.onBufferingStart();
             mediaPlayer.prepareAsync();
             mediaPlayer.setOnPreparedListener(mp -> {
+                if (currentListener != null) currentListener.onReady();
                 mp.start();
                 startProgressUpdates();
             });

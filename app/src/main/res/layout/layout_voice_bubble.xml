@@ -8,13 +8,27 @@
     android:padding="8dp"
     android:visibility="gone">
 
-    <ImageView
-        android:id="@+id/btn_play_pause"
+    <FrameLayout
         android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:src="@android:drawable/ic_media_play"
-        android:contentDescription="Play"
-        android:background="?attr/selectableItemBackgroundBorderless" />
+        android:layout_height="36dp">
+
+        <ImageView
+            android:id="@+id/btn_play_pause"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@android:drawable/ic_media_play"
+            android:contentDescription="Play"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <ProgressBar
+            android:id="@+id/voice_buffering"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="#FF6600"
+            android:visibility="gone" />
+
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="0dp"
