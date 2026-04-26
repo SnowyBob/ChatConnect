@@ -7,6 +7,7 @@ public class Chat {
     private boolean isGroup;
     private String profileImageUrl;
     private int unreadCount;
+    private long timestamp;
 
     public Chat() {}
 
@@ -27,4 +28,6 @@ public class Chat {
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
     public int getUnreadCount() { return unreadCount; }
     public void setUnreadCount(int unreadCount) { this.unreadCount = unreadCount; }
+    public long getTimestamp() { return timestamp; }
+    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
 }

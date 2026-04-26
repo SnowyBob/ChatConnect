@@ -169,10 +169,13 @@ public class MainActivity extends AppCompatActivity {
                                 unreadCount = unreadCounts.get(currentUserId).intValue();
                             }
 
+                            long timestamp = lastTimestamp != null ? lastTimestamp : 0L;
+
                             if (isGroup) {
                                 String groupName = document.getString("name");
                                 Chat chat = new Chat(chatId, groupName != null ? groupName : "Group Chat", lastMessage, true, profileImageUrl);
                                 chat.setUnreadCount(unreadCount);
+                                chat.setTimestamp(timestamp);
                                 chatsMap.put(chatId, chat);
                                 refreshAdapter();
                             } else {
@@ -188,6 +191,7 @@ public class MainActivity extends AppCompatActivity {
                                     if (otherUserId != null) {
                                         final String finalLastMessage = lastMessage;
                                         final int finalUnreadCount = unreadCount;
+                                        final long finalTimestamp = timestamp;
                                         db.collection("users").document(otherUserId).get()
                                                 .addOnSuccessListener(userDoc -> {
                                                     String username = userDoc.getString("username");
@@ -195,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
                                                     if (username != null) {
                                                         Chat chat = new Chat(chatId, username, finalLastMessage, false, userProfileImageUrl);
                                                         chat.setUnreadCount(finalUnreadCount);
+                                                        chat.setTimestamp(finalTimestamp);
                                                         chatsMap.put(chatId, chat);
                                                         refreshAdapter();
                                                     }
@@ -211,6 +216,7 @@ public class MainActivity extends AppCompatActivity {
     private void refreshAdapter() {
         chatsList.clear();
         chatsList.addAll(chatsMap.values());
+        chatsList.sort((a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
         adapter.notifyDataSetChanged();
         updateUI();
     }
