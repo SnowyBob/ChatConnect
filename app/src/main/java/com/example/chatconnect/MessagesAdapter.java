@@ -102,6 +102,19 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         Message message = messages.get(position);
         holder.bind(message, isGroup && !message.getSenderId().equals(currentUserId));
 
+        // --- Date divider ---
+        TextView dateDivider = holder.itemView.findViewById(R.id.date_divider);
+        if (dateDivider != null) {
+            java.util.Date current = message.getTimestamp();
+            java.util.Date previous = position > 0 ? messages.get(position - 1).getTimestamp() : null;
+            if (current != null && (previous == null || !isSameDay(current, previous))) {
+                dateDivider.setText(formatDateDivider(current));
+                dateDivider.setVisibility(View.VISIBLE);
+            } else {
+                dateDivider.setVisibility(View.GONE);
+            }
+        }
+
         // --- Voice Message Handling ---
         LinearLayout voiceBubbleLayout = holder.itemView.findViewById(R.id.voice_bubble_layout);
         ImageView btnPlayPause = holder.itemView.findViewById(R.id.btn_play_pause);
@@ -353,5 +366,34 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                     .error(R.drawable.ic_profile)
                     .into(profileImage);
         }
+    }
+
+    private static boolean isSameDay(java.util.Date a, java.util.Date b) {
+        java.util.Calendar ca = java.util.Calendar.getInstance();
+        ca.setTime(a);
+        java.util.Calendar cb = java.util.Calendar.getInstance();
+        cb.setTime(b);
+        return ca.get(java.util.Calendar.YEAR) == cb.get(java.util.Calendar.YEAR)
+                && ca.get(java.util.Calendar.DAY_OF_YEAR) == cb.get(java.util.Calendar.DAY_OF_YEAR);
+    }
+
+    private static String formatDateDivider(java.util.Date date) {
+        java.util.Calendar today = java.util.Calendar.getInstance();
+        java.util.Calendar yesterday = java.util.Calendar.getInstance();
+        yesterday.add(java.util.Calendar.DAY_OF_YEAR, -1);
+        java.util.Calendar target = java.util.Calendar.getInstance();
+        target.setTime(date);
+
+        if (sameDay(target, today)) return "Today";
+        if (sameDay(target, yesterday)) return "Yesterday";
+
+        String pattern = target.get(java.util.Calendar.YEAR) == today.get(java.util.Calendar.YEAR)
+                ? "MMMM d" : "MMMM d, yyyy";
+        return new SimpleDateFormat(pattern, Locale.getDefault()).format(date);
+    }
+
+    private static boolean sameDay(java.util.Calendar a, java.util.Calendar b) {
+        return a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR)
+                && a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR);
     }
 }
