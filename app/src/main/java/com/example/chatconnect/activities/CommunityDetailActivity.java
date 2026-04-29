@@ -49,6 +49,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
     private Button joinButton;
     private View sneakPeakOverlay;
     private ListenerRegistration communityListener;
+    private ListenerRegistration postsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +57,11 @@ public class CommunityDetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_community_detail);
 
         communityId = getIntent().getStringExtra("community_id");
+        if (communityId == null) {
+            Toast.makeText(this, "Error: Community not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
         communityManager = CommunityManager.getInstance();
         currentUserId = FirebaseAuth.getInstance().getUid();
 
@@ -181,7 +187,7 @@ public class CommunityDetailActivity extends AppCompatActivity {
     }
 
     private void loadPosts() {
-        communityManager.getPostsQuery(communityId).addSnapshotListener((value, error) -> {
+        postsListener = communityManager.getPostsQuery(communityId).addSnapshotListener((value, error) -> {
             if (error != null) return;
             postList.clear();
             if (value != null) {
@@ -288,6 +294,9 @@ public class CommunityDetailActivity extends AppCompatActivity {
         super.onDestroy();
         if (communityListener != null) {
             communityListener.remove();
+        }
+        if (postsListener != null) {
+            postsListener.remove();
         }
         ChatState.setActiveChatId(null);
         adapter.release();

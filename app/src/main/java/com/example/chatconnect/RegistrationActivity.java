@@ -57,6 +57,12 @@ public class RegistrationActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_registration);
 
+        if (savedInstanceState != null) {
+            currentPhotoPath = savedInstanceState.getString("currentPhotoPath");
+            String savedUri = savedInstanceState.getString("imageUri");
+            if (savedUri != null) imageUri = Uri.parse(savedUri);
+        }
+
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         supabaseManager = new SupabaseManager();
@@ -73,6 +79,13 @@ public class RegistrationActivity extends AppCompatActivity {
         createAccountButton.setOnClickListener(v -> registerNewUser());
 
         backToLogin.setOnClickListener(v -> finish());
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (currentPhotoPath != null) outState.putString("currentPhotoPath", currentPhotoPath);
+        if (imageUri != null) outState.putString("imageUri", imageUri.toString());
     }
 
     private void showImageSelectionDialog() {
@@ -151,7 +164,7 @@ public class RegistrationActivity extends AppCompatActivity {
                 imageUri = data.getData();
                 Glide.with(this).load(imageUri).circleCrop().into(profileImageView);
                 profileImageView.setPadding(0, 0, 0, 0);
-            } else if (requestCode == CAMERA_REQUEST) {
+            } else if (requestCode == CAMERA_REQUEST && currentPhotoPath != null) {
                 File f = new File(currentPhotoPath);
                 imageUri = Uri.fromFile(f);
                 Glide.with(this).load(imageUri).circleCrop().into(profileImageView);
@@ -182,7 +195,8 @@ public class RegistrationActivity extends AppCompatActivity {
                             }
                         }
                     } else {
-                        Toast.makeText(RegistrationActivity.this, "Authentication failed: " + task.getException().getMessage(),
+                        String errorMsg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                        Toast.makeText(RegistrationActivity.this, "Authentication failed: " + errorMsg,
                                 Toast.LENGTH_LONG).show();
                     }
                 });

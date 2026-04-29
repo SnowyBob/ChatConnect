@@ -49,8 +49,6 @@ import android.view.MotionEvent;
 import android.widget.RelativeLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
 import java.io.File;
 import java.util.UUID;
 import androidx.appcompat.app.AlertDialog;
@@ -95,6 +93,7 @@ public class ChatActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private AiService aiService;
     private ListenerRegistration chatListener;
+    private ListenerRegistration messagesListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -611,7 +610,7 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void loadMessages() {
-        db.collection("chats").document(chatId).collection("messages")
+        messagesListener = db.collection("chats").document(chatId).collection("messages")
                 .orderBy("timestamp", Query.Direction.ASCENDING)
                 .addSnapshotListener((snapshots, e) -> {
                     if (e != null) return;
@@ -670,10 +669,25 @@ public class ChatActivity extends AppCompatActivity {
         if (chatListener != null) {
             chatListener.remove();
         }
+        if (messagesListener != null) {
+            messagesListener.remove();
+        }
         ChatState.setActiveChatId(null);
         VoicePlayerManager.getInstance().stop(); // Stop playback when leaving
         if (voiceRecorder != null && voiceRecorder.isRecording()) {
             voiceRecorder.cancelRecording();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @androidx.annotation.NonNull String[] permissions, @androidx.annotation.NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 101) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Microphone access granted. Hold the mic to record.", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Microphone permission is required to record voice messages", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 

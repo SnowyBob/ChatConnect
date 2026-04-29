@@ -18,6 +18,7 @@ import com.example.chatconnect.adapters.CommunityAdapter;
 import com.example.chatconnect.managers.CommunityManager;
 import com.example.chatconnect.models.Community;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ public class CommunityListActivity extends AppCompatActivity {
     private List<Community> communityList = new ArrayList<>();
     private CommunityManager communityManager;
     private String currentUserId;
+    private ListenerRegistration communitiesListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +66,7 @@ public class CommunityListActivity extends AppCompatActivity {
     }
 
     private void loadCommunities() {
-        communityManager.getAllCommunities().addSnapshotListener((value, error) -> {
+        communitiesListener = communityManager.getAllCommunities().addSnapshotListener((value, error) -> {
             if (error != null) return;
             communityList.clear();
             if (value != null) {
@@ -102,6 +104,14 @@ public class CommunityListActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (communitiesListener != null) {
+            communitiesListener.remove();
+        }
     }
 
     @Override

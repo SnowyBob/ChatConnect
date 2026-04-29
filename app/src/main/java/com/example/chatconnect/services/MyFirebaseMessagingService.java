@@ -166,4 +166,8 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             chatMessages.remove(chatId);
         }
     }
+
+    public static void clearAll() {
+        chatMessages.clear();
+    }
 }

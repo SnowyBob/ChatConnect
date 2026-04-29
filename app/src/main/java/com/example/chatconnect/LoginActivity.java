@@ -107,7 +107,8 @@ public class LoginActivity extends AppCompatActivity {
                         startActivity(intent);
                         finish();
                     } else {
-                        Toast.makeText(LoginActivity.this, "Authentication failed. " + task.getException().getMessage(),
+                        String errorMsg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                        Toast.makeText(LoginActivity.this, "Authentication failed. " + errorMsg,
                                 Toast.LENGTH_LONG).show();
                     }
                 });

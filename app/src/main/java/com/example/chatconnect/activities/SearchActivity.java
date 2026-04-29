@@ -462,7 +462,7 @@ public class SearchActivity extends AppCompatActivity {
 
     private void saveSearchHistory(String query) {
         android.content.SharedPreferences prefs = getSharedPreferences("SearchPrefs", MODE_PRIVATE);
-        Set<String> set = prefs.getStringSet("history", new HashSet<>());
+        Set<String> set = new HashSet<>(prefs.getStringSet("history", new HashSet<>()));
         set.add(query);
         prefs.edit().putStringSet("history", set).apply();
         if (!searchHistory.contains(query)) {

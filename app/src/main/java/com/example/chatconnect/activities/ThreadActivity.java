@@ -25,6 +25,7 @@ import com.example.chatconnect.services.AiService;
 import com.example.chatconnect.utils.ChatState;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -59,6 +60,7 @@ public class ThreadActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
     private AiService aiService;
+    private ListenerRegistration repliesListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +71,13 @@ public class ThreadActivity extends AppCompatActivity {
         postId = getIntent().getStringExtra("post_id");
         parentAuthor = getIntent().getStringExtra("author_name");
         parentContent = getIntent().getStringExtra("post_content");
+
+        if (communityId == null || postId == null) {
+            Toast.makeText(this, "Error: Thread not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         currentUserId = FirebaseAuth.getInstance().getUid();
 
         // Track active thread for notification suppression
@@ -229,7 +238,7 @@ public class ThreadActivity extends AppCompatActivity {
     }
 
     private void loadMessages() {
-        db.collection("communities").document(communityId)
+        repliesListener = db.collection("communities").document(communityId)
                 .collection("posts").document(postId)
                 .collection("replies").orderBy("timestamp", Query.Direction.ASCENDING)
                 .addSnapshotListener((value, error) -> {
@@ -292,6 +301,9 @@ public class ThreadActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (repliesListener != null) {
+            repliesListener.remove();
+        }
         ChatState.setActiveChatId(null);
     }
 

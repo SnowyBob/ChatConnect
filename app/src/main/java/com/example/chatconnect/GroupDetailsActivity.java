@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,7 @@ public class GroupDetailsActivity extends AppCompatActivity {
     private String currentUserId;
     private FirebaseFirestore db;
     private boolean isGroup;
+    private ListenerRegistration groupListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +38,11 @@ public class GroupDetailsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_group_details);
 
         chatId = getIntent().getStringExtra("chat_id");
+        if (chatId == null) {
+            Toast.makeText(this, "Error: Chat not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
         db = FirebaseFirestore.getInstance();
         if (FirebaseAuth.getInstance().getCurrentUser() != null) {
             currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -71,7 +78,7 @@ public class GroupDetailsActivity extends AppCompatActivity {
     }
 
     private void loadGroupDetails() {
-        db.collection("chats").document(chatId).addSnapshotListener((documentSnapshot, e) -> {
+        groupListener = db.collection("chats").document(chatId).addSnapshotListener((documentSnapshot, e) -> {
             if (documentSnapshot != null && documentSnapshot.exists()) {
                 String name = documentSnapshot.getString("name");
                 isGroup = Boolean.TRUE.equals(documentSnapshot.getBoolean("isGroup"));
@@ -162,6 +169,14 @@ public class GroupDetailsActivity extends AppCompatActivity {
 
         db.collection("chats").document(chatId).update("name", newName)
                 .addOnSuccessListener(aVoid -> Toast.makeText(this, "Group name updated", Toast.LENGTH_SHORT).show());
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (groupListener != null) {
+            groupListener.remove();
+        }
     }
 
     @Override

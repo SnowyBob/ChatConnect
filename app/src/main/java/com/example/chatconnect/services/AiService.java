@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.example.chatconnect.BuildConfig;
 import com.example.chatconnect.models.Community;
 import com.google.ai.client.generativeai.GenerativeModel;
 import com.google.ai.client.generativeai.java.GenerativeModelFutures;
@@ -22,9 +23,17 @@ import java.util.concurrent.Executors;
 public class AiService {
 
     private static final String TAG = "AiService";
-    private static final String GEMINI_API_KEY = "AIzaSyCoK6Vindic1fED5OEToyJrpCzXCkOJFpI";
+    private static final String GEMINI_API_KEY = BuildConfig.GEMINI_API_KEY;
+    private static final String PRIMARY_MODEL_NAME = "gemini-2.5-flash";
+    private static final String FALLBACK_MODEL_NAME = "gemini-2.0-flash-lite";
+    private static final String UNAVAILABLE_USER_MESSAGE =
+            "AI is temporarily unavailable, try again in a moment.";
+    private static final long RETRY_DELAY_MS = 2000L;
+    private static final int MAX_PRIMARY_ATTEMPTS = 2;
+    private static final int MAX_TOTAL_ATTEMPTS = 3;
 
     private final GenerativeModelFutures model;
+    private final GenerativeModelFutures fallbackModel;
     private final Executor executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -34,9 +43,10 @@ public class AiService {
     }
 
     public AiService() {
-        // Use a valid model name. gemini-1.5-flash is widely available.
-        GenerativeModel gm = new GenerativeModel("gemini-2.5-flash", GEMINI_API_KEY);
-        model = GenerativeModelFutures.from(gm);
+        GenerativeModel primary = new GenerativeModel(PRIMARY_MODEL_NAME, GEMINI_API_KEY);
+        model = GenerativeModelFutures.from(primary);
+        GenerativeModel fallback = new GenerativeModel(FALLBACK_MODEL_NAME, GEMINI_API_KEY);
+        fallbackModel = GenerativeModelFutures.from(fallback);
     }
 
     /**
@@ -61,29 +71,21 @@ public class AiService {
                 .addText(prompt)
                 .build();
 
-        try {
-            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
-
-            Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override
-                public void onSuccess(GenerateContentResponse result) {
-                    String text = result.getText();
-                    if (text == null || text.trim().isEmpty()) {
-                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty reply.")));
-                    } else {
-                        mainHandler.post(() -> callback.onGenerated(text.trim()));
-                    }
+        callGeminiWithRetry(content, "AI Reply generation failed", new AiCallback() {
+            @Override
+            public void onGenerated(String text) {
+                if (text == null || text.trim().isEmpty()) {
+                    callback.onError(new Exception("AI returned empty reply."));
+                } else {
+                    callback.onGenerated(text.trim());
                 }
+            }
 
-                @Override
-                public void onFailure(Throwable t) {
-                    Log.e(TAG, "AI Reply generation failed", t);
-                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
-                }
-            }, executor);
-        } catch (Exception e) {
-            callback.onError(e);
-        }
+            @Override
+            public void onError(Exception e) {
+                callback.onError(e);
+            }
+        });
     }
 
     /**
@@ -118,31 +120,23 @@ public class AiService {
                 .addText(promptBuilder.toString())
                 .build();
 
-        try {
-            ListenableFuture<GenerateContentResponse> response = model.generateContent(content);
-
-            Futures.addCallback(response, new FutureCallback<GenerateContentResponse>() {
-                @Override
-                public void onSuccess(GenerateContentResponse result) {
-                    String text = result.getText();
-                    if (text == null || text.trim().isEmpty()) {
-                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty content (possibly blocked by safety filters).")));
-                    } else {
-                        mainHandler.post(() -> callback.onGenerated(text.trim()));
-                    }
+        callGeminiWithRetry(content, "Gemini generation failed", new AiCallback() {
+            @Override
+            public void onGenerated(String text) {
+                if (text == null || text.trim().isEmpty()) {
+                    callback.onError(new Exception("AI returned empty content (possibly blocked by safety filters)."));
+                } else {
+                    callback.onGenerated(text.trim());
                 }
+            }
 
-                @Override
-                public void onFailure(Throwable t) {
-                    Log.e(TAG, "Gemini generation failed", t);
-                    mainHandler.post(() -> callback.onError(new Exception("AI Generation failed: " + t.getMessage())));
-                }
-            }, executor);
-        } catch (Exception e) {
-            Log.e(TAG, "Error starting AI generation", e);
-            callback.onError(e);
-        }
+            @Override
+            public void onError(Exception e) {
+                callback.onError(e);
+            }
+        });
     }
+
     public void generateSearchTerms(String userPrompt, AiCallback callback) {
         String prompt = "Generate 15-20 search terms for finding messages related to this query:\n" +
                 "\"" + userPrompt + "\"\n\n" +
@@ -159,29 +153,22 @@ public class AiService {
                 .addText(prompt)
                 .build();
 
-        try {
-            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
-            Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override
-                public void onSuccess(GenerateContentResponse result) {
-                    String text = result.getText();
-                    if (text == null || text.trim().isEmpty()) {
-                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty terms.")));
-                    } else {
-                        String cleaned = text.replaceAll("```json", "").replaceAll("```", "").trim();
-                        mainHandler.post(() -> callback.onGenerated(cleaned));
-                    }
+        callGeminiWithRetry(content, "Search term generation failed", new AiCallback() {
+            @Override
+            public void onGenerated(String text) {
+                if (text == null || text.trim().isEmpty()) {
+                    callback.onError(new Exception("AI returned empty terms."));
+                } else {
+                    String cleaned = text.replaceAll("```json", "").replaceAll("```", "").trim();
+                    callback.onGenerated(cleaned);
                 }
+            }
 
-                @Override
-                public void onFailure(Throwable t) {
-                    Log.e(TAG, "Search term generation failed", t);
-                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
-                }
-            }, executor);
-        } catch (Exception e) {
-            callback.onError(e);
-        }
+            @Override
+            public void onError(Exception e) {
+                callback.onError(e);
+            }
+        });
     }
 
     public void rankSearchResults(String matchedMessages, String userPrompt, AiCallback callback) {
@@ -209,30 +196,24 @@ public class AiService {
                 .addText(prompt)
                 .build();
 
-        try {
-            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
-            Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override
-                public void onSuccess(GenerateContentResponse result) {
-                    String text = result.getText();
-                    if (text == null || text.trim().isEmpty()) {
-                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty ranking.")));
-                    } else {
-                        String cleaned = text.replaceAll("```json", "").replaceAll("```", "").trim();
-                        mainHandler.post(() -> callback.onGenerated(cleaned));
-                    }
+        callGeminiWithRetry(content, "AI Ranking failed", new AiCallback() {
+            @Override
+            public void onGenerated(String text) {
+                if (text == null || text.trim().isEmpty()) {
+                    callback.onError(new Exception("AI returned empty ranking."));
+                } else {
+                    String cleaned = text.replaceAll("```json", "").replaceAll("```", "").trim();
+                    callback.onGenerated(cleaned);
                 }
+            }
 
-                @Override
-                public void onFailure(Throwable t) {
-                    Log.e(TAG, "AI Ranking failed", t);
-                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
-                }
-            }, executor);
-        } catch (Exception e) {
-            callback.onError(e);
-        }
+            @Override
+            public void onError(Exception e) {
+                callback.onError(e);
+            }
+        });
     }
+
     public void searchMessages(String formattedMessages, String userPrompt, AiCallback callback) {
         String prompt = "You are searching a chat conversation for relevant messages.\n\n" +
                 "Here are the messages:\n" +
@@ -260,30 +241,87 @@ public class AiService {
                 .addText(prompt)
                 .build();
 
+        callGeminiWithRetry(content, "AI Search failed", new AiCallback() {
+            @Override
+            public void onGenerated(String text) {
+                if (text == null || text.trim().isEmpty()) {
+                    callback.onError(new Exception("AI returned empty search results."));
+                } else {
+                    String cleanedJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
+                    callback.onGenerated(cleanedJson);
+                }
+            }
+
+            @Override
+            public void onError(Exception e) {
+                callback.onError(e);
+            }
+        });
+    }
+
+    /**
+     * Executes a Gemini call. On a 503 / UNAVAILABLE error, retries on the primary model
+     * (gemini-2.5-flash) once after a 2 second delay. If the second attempt also fails as
+     * unavailable, makes a third attempt against the fallback model (gemini-2.0-flash-lite).
+     * If that also fails, returns the user-facing unavailable message.
+     */
+    private void callGeminiWithRetry(Content content, String logTag, AiCallback callback) {
+        attemptGeminiCall(content, logTag, callback, 1);
+    }
+
+    private void attemptGeminiCall(Content content, String logTag, AiCallback callback, int attempt) {
+        final GenerativeModelFutures activeModel =
+                attempt <= MAX_PRIMARY_ATTEMPTS ? model : fallbackModel;
+        final String activeModelName =
+                attempt <= MAX_PRIMARY_ATTEMPTS ? PRIMARY_MODEL_NAME : FALLBACK_MODEL_NAME;
+
         try {
-            ListenableFuture<GenerateContentResponse> responseFuture = model.generateContent(content);
+            ListenableFuture<GenerateContentResponse> responseFuture = activeModel.generateContent(content);
 
             Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
                 @Override
                 public void onSuccess(GenerateContentResponse result) {
-                    String text = result.getText();
-                    if (text == null || text.trim().isEmpty()) {
-                        mainHandler.post(() -> callback.onError(new Exception("AI returned empty search results.")));
-                    } else {
-                        // Sometimes AI wraps JSON in markdown blocks
-                        String cleanedJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
-                        mainHandler.post(() -> callback.onGenerated(cleanedJson));
-                    }
+                    final String text = result != null ? result.getText() : null;
+                    mainHandler.post(() -> callback.onGenerated(text));
                 }
 
                 @Override
                 public void onFailure(Throwable t) {
-                    Log.e(TAG, "AI Search failed", t);
-                    mainHandler.post(() -> callback.onError(new Exception(t.getMessage())));
+                    Log.e(TAG, logTag + " (attempt " + attempt + ", model=" + activeModelName + ")", t);
+                    handleAttemptFailure(content, logTag, callback, attempt, t);
                 }
             }, executor);
         } catch (Exception e) {
-            callback.onError(e);
+            Log.e(TAG, logTag + " (sync error, attempt " + attempt + ", model=" + activeModelName + ")", e);
+            handleAttemptFailure(content, logTag, callback, attempt, e);
         }
+    }
+
+    private void handleAttemptFailure(Content content, String logTag, AiCallback callback,
+                                      int attempt, Throwable t) {
+        boolean unavailable = isUnavailableError(t);
+        if (unavailable && attempt < MAX_TOTAL_ATTEMPTS) {
+            mainHandler.postDelayed(
+                    () -> attemptGeminiCall(content, logTag, callback, attempt + 1),
+                    RETRY_DELAY_MS);
+        } else if (unavailable) {
+            mainHandler.post(() -> callback.onError(new Exception(UNAVAILABLE_USER_MESSAGE)));
+        } else {
+            final String msg = t.getMessage() != null ? t.getMessage() : "AI request failed";
+            mainHandler.post(() -> callback.onError(new Exception(msg)));
+        }
+    }
+
+    private static boolean isUnavailableError(Throwable t) {
+        if (t == null) return false;
+        String msg = t.getMessage();
+        if (msg != null) {
+            String lower = msg.toLowerCase();
+            if (lower.contains("503") || lower.contains("unavailable")) return true;
+        }
+        String name = t.getClass().getSimpleName();
+        if (name != null && name.toLowerCase().contains("unavailable")) return true;
+        Throwable cause = t.getCause();
+        return cause != null && cause != t && isUnavailableError(cause);
     }
 }

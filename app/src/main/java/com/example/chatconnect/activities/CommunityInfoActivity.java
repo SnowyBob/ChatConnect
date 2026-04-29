@@ -24,6 +24,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,6 +48,7 @@ public class CommunityInfoActivity extends AppCompatActivity {
     private List<User> memberList = new ArrayList<>();
     private List<User> bannedList = new ArrayList<>();
     private Map<String, String> memberRoles = new HashMap<>();
+    private ListenerRegistration communityListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +56,11 @@ public class CommunityInfoActivity extends AppCompatActivity {
         setContentView(R.layout.activity_community_info);
 
         communityId = getIntent().getStringExtra("community_id");
+        if (communityId == null) {
+            Toast.makeText(this, "Error: Community not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
         currentUserId = FirebaseAuth.getInstance().getUid();
         db = FirebaseFirestore.getInstance();
         communityManager = CommunityManager.getInstance();
@@ -92,7 +99,7 @@ public class CommunityInfoActivity extends AppCompatActivity {
     }
 
     private void loadCommunityData() {
-        db.collection("communities").document(communityId).addSnapshotListener((value, error) -> {
+        communityListener = db.collection("communities").document(communityId).addSnapshotListener((value, error) -> {
             if (value != null && value.exists()) {
                 community = value.toObject(Community.class);
                 if (community != null) {
@@ -307,6 +314,14 @@ public class CommunityInfoActivity extends AppCompatActivity {
         db.collection("communities").document(communityId)
                 .update("bannedUsers", FieldValue.arrayRemove(userId))
                 .addOnSuccessListener(aVoid -> Toast.makeText(this, "Member unbanned", Toast.LENGTH_SHORT).show());
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (communityListener != null) {
+            communityListener.remove();
+        }
     }
 
     @Override

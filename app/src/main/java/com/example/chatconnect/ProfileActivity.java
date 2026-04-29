@@ -60,6 +60,12 @@ public class ProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
 
+        if (savedInstanceState != null) {
+            currentPhotoPath = savedInstanceState.getString("currentPhotoPath");
+            String savedUri = savedInstanceState.getString("imageUri");
+            if (savedUri != null) imageUri = Uri.parse(savedUri);
+        }
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -161,7 +167,7 @@ public class ProfileActivity extends AppCompatActivity {
                 imageUri = data.getData();
                 Glide.with(this).load(imageUri).circleCrop().into(profileImageView);
                 profileImageView.setPadding(0, 0, 0, 0);
-            } else if (requestCode == CAMERA_REQUEST) {
+            } else if (requestCode == CAMERA_REQUEST && currentPhotoPath != null) {
                 File f = new File(currentPhotoPath);
                 imageUri = Uri.fromFile(f);
                 Glide.with(this).load(imageUri).circleCrop().into(profileImageView);
@@ -235,6 +241,13 @@ public class ProfileActivity extends AppCompatActivity {
                     imageUri = null; // Clear selection after save
                 })
                 .addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Update failed", Toast.LENGTH_SHORT).show());
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (currentPhotoPath != null) outState.putString("currentPhotoPath", currentPhotoPath);
+        if (imageUri != null) outState.putString("imageUri", imageUri.toString());
     }
 
     @Override

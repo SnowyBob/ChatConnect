@@ -25,6 +25,7 @@ import com.example.chatconnect.activities.SearchActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private ChatsAdapter adapter;
     private FirebaseFirestore db;
     private String currentUserId;
+    private ListenerRegistration chatsListener;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -135,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadChats() {
         if (currentUserId == null) return;
-        db.collection("chats")
+        chatsListener = db.collection("chats")
                 .whereArrayContains("participants", currentUserId)
                 .addSnapshotListener((snapshots, e) -> {
                     if (e != null) {
@@ -228,6 +230,14 @@ public class MainActivity extends AppCompatActivity {
         } else {
             chatsRecyclerView.setVisibility(View.VISIBLE);
             emptyChatsText.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (chatsListener != null) {
+            chatsListener.remove();
         }
     }
 }
