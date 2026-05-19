@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
-import com.example.chatconnect.ChatActivity;
+import com.example.chatconnect.activities.ChatActivity;
 import com.example.chatconnect.R;
 import com.example.chatconnect.utils.ChatState;
 import com.google.firebase.auth.FirebaseAuth;

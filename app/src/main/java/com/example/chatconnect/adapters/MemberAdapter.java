@@ -11,7 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.chatconnect.R;
-import com.example.chatconnect.User;
+import com.example.chatconnect.models.User;
 import com.example.chatconnect.models.Role;
 
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.example.chatconnect;
+package com.example.chatconnect.activities;
 
 import android.os.Bundle;
 import android.view.View;
@@ -11,6 +11,9 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.chatconnect.R;
+import com.example.chatconnect.adapters.UsersAdapter;
+import com.example.chatconnect.models.User;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;

@@ -18,8 +18,8 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.chatconnect.Message;
-import com.example.chatconnect.MessagesAdapter;
+import com.example.chatconnect.models.Message;
+import com.example.chatconnect.adapters.MessagesAdapter;
 import com.example.chatconnect.R;
 import com.example.chatconnect.services.AiService;
 import com.example.chatconnect.utils.ChatState;

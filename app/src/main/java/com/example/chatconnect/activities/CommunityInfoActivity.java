@@ -13,7 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatconnect.R;
-import com.example.chatconnect.User;
+import com.example.chatconnect.models.User;
 import com.example.chatconnect.adapters.MemberAdapter;
 import com.example.chatconnect.managers.CommunityManager;
 import com.example.chatconnect.models.Community;

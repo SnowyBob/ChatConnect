@@ -1,4 +1,4 @@
-package com.example.chatconnect;
+package com.example.chatconnect.activities;
 
 import android.Manifest;
 import android.content.Intent;
@@ -20,8 +20,9 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.chatconnect.activities.CommunityListActivity;
-import com.example.chatconnect.activities.SearchActivity;
+import com.example.chatconnect.adapters.ChatsAdapter;
+import com.example.chatconnect.R;
+import com.example.chatconnect.models.Chat;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;

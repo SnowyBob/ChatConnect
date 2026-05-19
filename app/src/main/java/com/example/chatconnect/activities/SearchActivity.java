@@ -14,7 +14,6 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.chatconnect.ChatActivity;
 import com.example.chatconnect.R;
 import com.example.chatconnect.adapters.SearchHistoryAdapter;
 import com.example.chatconnect.adapters.SearchResultAdapter;
